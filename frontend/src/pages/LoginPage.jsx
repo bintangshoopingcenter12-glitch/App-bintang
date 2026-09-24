@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth, apiError } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   if (user) {
-    navigate(user.role === "admin" ? "/admin/dashboard" : "/employee/my-tasks", { replace: true });
+    return <Navigate to={user.role === "admin" ? "/admin/dashboard" : "/employee/my-tasks"} replace />;
   }
 
   const submit = async (e) => {
