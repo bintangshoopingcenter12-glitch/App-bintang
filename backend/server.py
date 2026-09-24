@@ -134,6 +134,7 @@ class BarangInput(BaseModel):
     kode: str
     nama: str
     kategori: str
+    barcode: str = ""
     lokasi_rak: str = ""
     stok_sistem: int = 0
     stok_minimum: int = 0
@@ -143,6 +144,7 @@ class BarangMasukInput(BaseModel):
     kode: str
     nama: str
     kategori: str = ""
+    barcode: str = ""
     jumlah: int
     lokasi_rak: str
     tanggal_masuk: Optional[str] = None
@@ -158,6 +160,23 @@ class AssignInput(BaseModel):
 class CheckInput(BaseModel):
     stok_fisik: int
     catatan: str = ""
+
+
+class SalesPreviewInput(BaseModel):
+    raw: str
+
+
+class SalesRow(BaseModel):
+    barcode: str = ""
+    nama: str = ""
+    qty: int = 0
+    price: float = 0
+    tanggal: str = ""
+    catatan: str = ""
+
+
+class SalesConfirmInput(BaseModel):
+    rows: List[SalesRow]
 
 
 # ------------------------------------------------------------------ auth routes
@@ -279,8 +298,38 @@ async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
 # ------------------------------------------------------------------ master barang (admin CRUD)
 def barang_public(b: dict) -> dict:
     return {"id": b["_id"], "kode": b["kode"], "nama": b["nama"], "kategori": b.get("kategori", ""),
-            "lokasi_rak": b.get("lokasi_rak", ""), "stok_sistem": b.get("stok_sistem", 0),
+            "barcode": b.get("barcode", ""), "lokasi_rak": b.get("lokasi_rak", ""),
+            "stok_sistem": b.get("stok_sistem", 0),
             "stok_minimum": b.get("stok_minimum", 0), "updated_at": b.get("updated_at", "")}
+
+
+def gen_ean13() -> str:
+    import random
+    base = [random.randint(0, 9) for _ in range(12)]
+    s = sum(base[i] * (1 if i % 2 == 0 else 3) for i in range(12))
+    check = (10 - (s % 10)) % 10
+    return "".join(map(str, base)) + str(check)
+
+
+async def unique_barcode() -> str:
+    for _ in range(25):
+        bc = gen_ean13()
+        if not await db.barang.find_one({"barcode": bc}):
+            return bc
+    return gen_ean13()
+
+
+@api_router.get("/barang/lookup")
+async def barang_lookup(code: str, request: Request):
+    user = await get_current_user(request)
+    code = code.strip()
+    b = await db.barang.find_one({"$or": [{"barcode": code}, {"kode": code}]})
+    if not b:
+        raise HTTPException(status_code=404, detail="Barang tidak ditemukan")
+    if user.get("role") == "employee":
+        return {"id": b["_id"], "kode": b["kode"], "nama": b["nama"], "barcode": b.get("barcode", ""),
+                "kategori": b.get("kategori", ""), "lokasi_rak": b.get("lokasi_rak", "")}
+    return barang_public(b)
 
 
 @api_router.get("/barang")
@@ -299,7 +348,15 @@ async def list_kategori(admin: dict = Depends(require_admin)):
 async def create_barang(data: BarangInput, admin: dict = Depends(require_admin)):
     if await db.barang.find_one({"kode": data.kode}):
         raise HTTPException(status_code=400, detail="Kode barang sudah ada")
-    doc = {"_id": str(uuid.uuid4()), **data.model_dump(), "created_at": now_iso(), "updated_at": now_iso()}
+    payload = data.model_dump()
+    bc = (payload.get("barcode") or "").strip()
+    if bc:
+        if await db.barang.find_one({"barcode": bc}):
+            raise HTTPException(status_code=400, detail="Barcode sudah digunakan")
+    else:
+        bc = await unique_barcode()
+    payload["barcode"] = bc
+    doc = {"_id": str(uuid.uuid4()), **payload, "created_at": now_iso(), "updated_at": now_iso()}
     await db.barang.insert_one(doc)
     return barang_public(doc)
 
@@ -312,8 +369,16 @@ async def update_barang(barang_id: str, data: BarangInput, admin: dict = Depends
     dup = await db.barang.find_one({"kode": data.kode, "_id": {"$ne": barang_id}})
     if dup:
         raise HTTPException(status_code=400, detail="Kode barang sudah ada")
+    payload = data.model_dump()
+    bc = (payload.get("barcode") or "").strip()
+    if bc:
+        if await db.barang.find_one({"barcode": bc, "_id": {"$ne": barang_id}}):
+            raise HTTPException(status_code=400, detail="Barcode sudah digunakan")
+    else:
+        bc = b.get("barcode") or await unique_barcode()
+    payload["barcode"] = bc
     await db.barang.update_one({"_id": barang_id},
-                               {"$set": {**data.model_dump(), "updated_at": now_iso()}})
+                               {"$set": {**payload, "updated_at": now_iso()}})
     return barang_public(await db.barang.find_one({"_id": barang_id}))
 
 
@@ -350,9 +415,10 @@ async def create_barang_masuk(data: BarangMasukInput, admin: dict = Depends(requ
             "lokasi_rak": data.lokasi_rak, "updated_at": now_iso()},
             "$inc": {"stok_sistem": data.jumlah}})
     else:
+        bc = (data.barcode or "").strip() or await unique_barcode()
         await db.barang.insert_one({"_id": str(uuid.uuid4()), "kode": data.kode, "nama": data.nama,
                                     "kategori": data.kategori, "lokasi_rak": data.lokasi_rak,
-                                    "stok_sistem": data.jumlah, "stok_minimum": 0,
+                                    "barcode": bc, "stok_sistem": data.jumlah, "stok_minimum": 0,
                                     "created_at": now_iso(), "updated_at": now_iso()})
     return {"id": doc["_id"], "message": "Barang masuk dicatat & master diperbarui"}
 
@@ -363,6 +429,7 @@ async def build_tugas_admin(t: dict) -> dict:
     emp = await db.users.find_one({"_id": t["employee_id"]}) or {}
     return {"id": t["_id"], "barang_id": t["barang_id"], "employee_id": t["employee_id"],
             "employee_name": emp.get("name", "-"),
+            "barcode": b.get("barcode", ""),
             "kode": b.get("kode", "-"), "nama": b.get("nama", "-"), "kategori": b.get("kategori", ""),
             "lokasi_rak": b.get("lokasi_rak", ""), "stok_sistem": b.get("stok_sistem", 0),
             "stok_minimum": b.get("stok_minimum", 0),
@@ -410,7 +477,7 @@ async def my_tasks(request: Request):
     for t in rows:
         b = await db.barang.find_one({"_id": t["barang_id"]}) or {}
         # BLIND: stok_sistem & stok_minimum are intentionally excluded
-        out.append({"id": t["_id"], "kode": b.get("kode", "-"), "nama": b.get("nama", "-"),
+        out.append({"id": t["_id"], "barcode": b.get("barcode", ""), "kode": b.get("kode", "-"), "nama": b.get("nama", "-"),
                     "kategori": b.get("kategori", ""), "lokasi_rak": b.get("lokasi_rak", ""),
                     "status": t.get("status", "belum_dicek"), "stok_fisik": t.get("stok_fisik"),
                     "catatan": t.get("catatan", ""), "checked_at": t.get("checked_at", "")})
@@ -450,7 +517,7 @@ async def summary(admin: dict = Depends(require_admin), employee_id: Optional[st
         sistem = b.get("stok_sistem", 0)
         fisik = t.get("stok_fisik")
         variance = (fisik - sistem) if (fisik is not None) else None
-        return {"id": t["_id"], "kode": b.get("kode", "-"), "nama": b.get("nama", "-"),
+        return {"id": t["_id"], "barcode": b.get("barcode", ""), "kode": b.get("kode", "-"), "nama": b.get("nama", "-"),
                 "kategori": b.get("kategori", ""), "lokasi_rak": b.get("lokasi_rak", ""),
                 "stok_sistem": sistem, "stok_minimum": b.get("stok_minimum", 0),
                 "stok_fisik": fisik, "variance": variance, "catatan": t.get("catatan", ""),
@@ -491,6 +558,107 @@ async def summary(admin: dict = Depends(require_admin), employee_id: Optional[st
 
     return {"overview": overview, "breakdown": breakdown, "unchecked": unchecked,
             "out_of_stock": out_of_stock, "low_stock": low_stock, "discrepancies": discrepancies}
+
+
+# ------------------------------------------------------------------ sales (penjualan)
+def parse_sales_text(raw: str):
+    rows = []
+    for idx, line in enumerate(raw.splitlines()):
+        if not line.strip():
+            continue
+        parts = line.split("\t") if "\t" in line else line.split(",")
+        parts = [p.strip() for p in parts]
+        if idx == 0 and parts and parts[0].lower() in ("barcode", "sku", "kode"):
+            continue
+        rows.append(parts)
+    return rows
+
+
+def _parse_price(raw: str) -> float:
+    raw = (raw or "").strip()
+    if not raw:
+        return 0.0
+    raw = raw.replace("Rp", "").replace(" ", "")
+    if "," in raw and "." in raw:
+        raw = raw.replace(".", "").replace(",", ".")
+    elif "," in raw:
+        raw = raw.replace(",", ".")
+    return float(raw)
+
+
+@api_router.post("/sales/preview")
+async def sales_preview(data: SalesPreviewInput, admin: dict = Depends(require_admin)):
+    parsed = parse_sales_text(data.raw)
+    out = []
+    for i, parts in enumerate(parsed):
+        code = parts[0] if len(parts) > 0 else ""
+        nama = parts[1] if len(parts) > 1 else ""
+        qty_raw = parts[2] if len(parts) > 2 else ""
+        price_raw = parts[3] if len(parts) > 3 else ""
+        tanggal = parts[4] if len(parts) > 4 else ""
+        catatan = parts[5] if len(parts) > 5 else ""
+        errors = []
+        try:
+            qty = int(float(qty_raw))
+            if qty <= 0:
+                errors.append("Qty harus > 0")
+        except Exception:
+            qty = 0
+            errors.append("Qty tidak valid")
+        try:
+            price = _parse_price(price_raw)
+        except Exception:
+            price = 0.0
+            errors.append("Harga tidak valid")
+        b = await db.barang.find_one({"$or": [{"barcode": code}, {"kode": code}]}) if code else None
+        if not code:
+            errors.append("Barcode/SKU kosong")
+        elif not b:
+            errors.append("Produk tidak terdaftar")
+        if not errors:
+            status = "ok"
+        elif b is None and code:
+            status = "not_found"
+        else:
+            status = "invalid"
+        out.append({"row": i + 1, "code": code,
+                    "barcode": (b or {}).get("barcode", "") or code,
+                    "kode": (b or {}).get("kode", ""), "input_nama": nama,
+                    "nama": (b or {}).get("nama", nama), "qty": qty, "price": price,
+                    "tanggal": tanggal, "catatan": catatan, "barang_id": (b or {}).get("_id"),
+                    "stok_sistem": (b or {}).get("stok_sistem"), "matched": b is not None,
+                    "status": status, "errors": errors})
+    valid = len([r for r in out if r["status"] == "ok"])
+    return {"rows": out, "total": len(out), "valid": valid, "invalid": len(out) - valid}
+
+
+@api_router.post("/sales")
+async def sales_confirm(data: SalesConfirmInput, admin: dict = Depends(require_admin)):
+    saved, skipped = 0, []
+    for r in data.rows:
+        code = r.barcode.strip()
+        b = await db.barang.find_one({"$or": [{"barcode": code}, {"kode": code}]}) if code else None
+        if not b or r.qty <= 0:
+            skipped.append(code)
+            continue
+        total = round(r.qty * r.price, 2)
+        await db.sales.insert_one({"_id": str(uuid.uuid4()), "barcode": b.get("barcode", ""),
+                                   "kode": b["kode"], "nama": b["nama"], "qty": r.qty, "price": r.price,
+                                   "total": total, "tanggal": r.tanggal or now_iso(), "catatan": r.catatan,
+                                   "created_by": admin["name"], "created_at": now_iso()})
+        await db.barang.update_one({"_id": b["_id"]},
+                                   {"$inc": {"stok_sistem": -r.qty}, "$set": {"updated_at": now_iso()}})
+        saved += 1
+    return {"saved": saved, "skipped": skipped, "message": f"{saved} transaksi penjualan tersimpan"}
+
+
+@api_router.get("/sales")
+async def list_sales(admin: dict = Depends(require_admin)):
+    rows = await db.sales.find().sort("created_at", -1).to_list(2000)
+    return [{"id": r["_id"], "barcode": r.get("barcode", ""), "kode": r["kode"], "nama": r["nama"],
+             "qty": r["qty"], "price": r.get("price", 0), "total": r.get("total", 0),
+             "tanggal": r.get("tanggal", ""), "catatan": r.get("catatan", ""),
+             "created_by": r.get("created_by", ""), "created_at": r.get("created_at", "")} for r in rows]
 
 
 # ------------------------------------------------------------------ seeding
@@ -613,8 +781,11 @@ async def startup():
     await db.users.create_index("username", unique=True)
     await db.login_attempts.create_index("identifier")
     await db.barang.create_index("kode", unique=True)
+    await db.barang.create_index("barcode")
     await db.tugas.create_index("employee_id")
     await seed()
+    async for b in db.barang.find({"$or": [{"barcode": {"$exists": False}}, {"barcode": ""}]}):
+        await db.barang.update_one({"_id": b["_id"]}, {"$set": {"barcode": await unique_barcode()}})
 
 
 app.include_router(api_router)

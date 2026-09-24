@@ -18,7 +18,14 @@ import {
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 
-const empty = { kode: "", nama: "", kategori: "", lokasi_rak: "", stok_sistem: 0, stok_minimum: 0 };
+const empty = { kode: "", nama: "", kategori: "", barcode: "", lokasi_rak: "", stok_sistem: 0, stok_minimum: 0 };
+
+function genEan13() {
+  const base = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10));
+  const s = base.reduce((acc, d, i) => acc + d * (i % 2 === 0 ? 1 : 3), 0);
+  const check = (10 - (s % 10)) % 10;
+  return base.join("") + check;
+}
 
 export default function MasterBarangPage() {
   const [items, setItems] = useState([]);
@@ -85,6 +92,7 @@ export default function MasterBarangPage() {
             <TableHeader>
               <TableRow className="bg-slate-50">
                 <TableHead>Kode</TableHead>
+                <TableHead>Barcode</TableHead>
                 <TableHead>Nama Barang</TableHead>
                 <TableHead>Kategori</TableHead>
                 <TableHead>Lokasi Rak</TableHead>
@@ -97,6 +105,7 @@ export default function MasterBarangPage() {
               {filtered.map((b) => (
                 <TableRow key={b.id} data-testid={`barang-row-${b.kode}`}>
                   <TableCell className="font-mono text-xs">{b.kode}</TableCell>
+                  <TableCell className="font-mono text-xs text-slate-500">{b.barcode || "-"}</TableCell>
                   <TableCell className="font-medium">{b.nama}</TableCell>
                   <TableCell><Badge variant="secondary">{b.kategori}</Badge></TableCell>
                   <TableCell className="font-mono text-xs">{b.lokasi_rak || "-"}</TableCell>
@@ -115,7 +124,7 @@ export default function MasterBarangPage() {
                 </TableRow>
               ))}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="py-10 text-center text-slate-400">
+                <TableRow><TableCell colSpan={8} className="py-10 text-center text-slate-400">
                   <Package className="mx-auto mb-2 h-8 w-8" />Tidak ada barang
                 </TableCell></TableRow>
               )}
@@ -134,6 +143,13 @@ export default function MasterBarangPage() {
               <Input data-testid="form-kategori" value={form.kategori} onChange={(e) => setForm({ ...form, kategori: e.target.value })} /></div>
             <div className="col-span-2 space-y-1.5"><Label>Nama Barang</Label>
               <Input data-testid="form-nama" value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} /></div>
+            <div className="col-span-2 space-y-1.5"><Label>Barcode (EAN-13 / CODE128)</Label>
+              <div className="flex gap-2">
+                <Input data-testid="form-barcode" className="font-mono" placeholder="Kosongkan untuk auto-generate"
+                       value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} />
+                <Button type="button" variant="outline" data-testid="form-barcode-generate" onClick={() => setForm({ ...form, barcode: genEan13() })}>Auto</Button>
+              </div>
+            </div>
             <div className="col-span-2 space-y-1.5"><Label>Lokasi Rak / Shelf ID</Label>
               <Input data-testid="form-lokasi" value={form.lokasi_rak} onChange={(e) => setForm({ ...form, lokasi_rak: e.target.value })} /></div>
             <div className="space-y-1.5"><Label>Stok Sistem</Label>

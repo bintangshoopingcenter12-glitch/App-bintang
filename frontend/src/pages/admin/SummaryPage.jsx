@@ -119,12 +119,13 @@ export default function SummaryPage() {
           <Card className="overflow-hidden border-slate-200">
             <div className="overflow-x-auto"><Table>
               <TableHeader><TableRow className="bg-slate-50">
-                <TableHead>Nama Barang</TableHead><TableHead>SKU</TableHead><TableHead>Lokasi Rak</TableHead>
+                <TableHead>Barcode</TableHead><TableHead>Nama Barang</TableHead><TableHead>SKU</TableHead><TableHead>Lokasi Rak</TableHead>
                 <TableHead>Karyawan</TableHead><TableHead>Status</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {data?.unchecked?.map((r) => (
                   <TableRow key={r.id} data-testid={`unchecked-row-${r.id}`}>
+                    <TableCell className="font-mono text-xs text-slate-500">{r.barcode || "-"}</TableCell>
                     <TableCell className="font-medium">{r.nama}</TableCell>
                     <TableCell className="font-mono text-xs">{r.kode}</TableCell>
                     <TableCell className="font-mono text-xs">{r.lokasi_rak || "-"}</TableCell>
@@ -132,7 +133,7 @@ export default function SummaryPage() {
                     <TableCell><Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Belum Dicek</Badge></TableCell>
                   </TableRow>
                 ))}
-                {!data?.unchecked?.length && <EmptyRow span={5} text="Semua item sudah dicek 🎉" />}
+                {!data?.unchecked?.length && <EmptyRow span={6} text="Semua item sudah dicek 🎉" />}
               </TableBody>
             </Table></div>
           </Card>
@@ -143,12 +144,13 @@ export default function SummaryPage() {
           <Card className="overflow-hidden border-slate-200">
             <div className="overflow-x-auto"><Table>
               <TableHeader><TableRow className="bg-slate-50">
-                <TableHead>Nama Barang</TableHead><TableHead>SKU</TableHead><TableHead>Lokasi Rak</TableHead>
+                <TableHead>Barcode</TableHead><TableHead>Nama Barang</TableHead><TableHead>SKU</TableHead><TableHead>Lokasi Rak</TableHead>
                 <TableHead>Tgl Dicek</TableHead><TableHead>Diperiksa Oleh</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {data?.out_of_stock?.map((r) => (
                   <TableRow key={r.id} data-testid={`oos-row-${r.id}`}>
+                    <TableCell className="font-mono text-xs text-slate-500">{r.barcode || "-"}</TableCell>
                     <TableCell className="font-medium"><div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-rose-500" />{r.nama}</div></TableCell>
                     <TableCell className="font-mono text-xs">{r.kode}</TableCell>
                     <TableCell className="font-mono text-xs">{r.lokasi_rak || "-"}</TableCell>
@@ -156,7 +158,7 @@ export default function SummaryPage() {
                     <TableCell>{r.employee_name}</TableCell>
                   </TableRow>
                 ))}
-                {!data?.out_of_stock?.length && <EmptyRow span={5} text="Tidak ada barang habis" />}
+                {!data?.out_of_stock?.length && <EmptyRow span={6} text="Tidak ada barang habis" />}
               </TableBody>
             </Table></div>
           </Card>
@@ -167,12 +169,13 @@ export default function SummaryPage() {
           <Card className="overflow-hidden border-slate-200">
             <div className="overflow-x-auto"><Table>
               <TableHeader><TableRow className="bg-slate-50">
-                <TableHead>Nama Barang</TableHead><TableHead>SKU</TableHead><TableHead>Lokasi Rak</TableHead>
+                <TableHead>Barcode</TableHead><TableHead>Nama Barang</TableHead><TableHead>SKU</TableHead><TableHead>Lokasi Rak</TableHead>
                 <TableHead className="text-right">Stok Fisik</TableHead><TableHead className="text-right">Min. Threshold</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {data?.low_stock?.map((r) => (
                   <TableRow key={r.id} data-testid={`low-row-${r.id}`}>
+                    <TableCell className="font-mono text-xs text-slate-500">{r.barcode || "-"}</TableCell>
                     <TableCell className="font-medium"><div className="flex items-center gap-2"><TrendingDown className="h-4 w-4 text-amber-500" />{r.nama}</div></TableCell>
                     <TableCell className="font-mono text-xs">{r.kode}</TableCell>
                     <TableCell className="font-mono text-xs">{r.lokasi_rak || "-"}</TableCell>
@@ -180,7 +183,7 @@ export default function SummaryPage() {
                     <TableCell className="text-right text-slate-500">{r.stok_minimum}</TableCell>
                   </TableRow>
                 ))}
-                {!data?.low_stock?.length && <EmptyRow span={5} text="Tidak ada stok sedikit" />}
+                {!data?.low_stock?.length && <EmptyRow span={6} text="Tidak ada stok sedikit" />}
               </TableBody>
             </Table></div>
           </Card>
@@ -191,13 +194,14 @@ export default function SummaryPage() {
           <Card className="overflow-hidden border-slate-200">
             <div className="overflow-x-auto"><Table>
               <TableHeader><TableRow className="bg-slate-50">
-                <TableHead>Nama Barang</TableHead><TableHead>SKU</TableHead><TableHead>Rak</TableHead>
+                <TableHead>Barcode</TableHead><TableHead>Nama Barang</TableHead><TableHead>SKU</TableHead><TableHead>Rak</TableHead>
                 <TableHead className="text-right">Stok Sistem</TableHead><TableHead className="text-right">Stok Fisik</TableHead>
                 <TableHead className="text-right">Selisih</TableHead><TableHead>Catatan</TableHead><TableHead>Diperiksa Oleh</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {data?.discrepancies?.map((r) => (
                   <TableRow key={r.id} data-testid={`disc-row-${r.id}`}>
+                    <TableCell className="font-mono text-xs text-slate-500">{r.barcode || "-"}</TableCell>
                     <TableCell className="font-medium">{r.nama}</TableCell>
                     <TableCell className="font-mono text-xs">{r.kode}</TableCell>
                     <TableCell className="font-mono text-xs">{r.lokasi_rak || "-"}</TableCell>
@@ -212,7 +216,7 @@ export default function SummaryPage() {
                     <TableCell>{r.employee_name}</TableCell>
                   </TableRow>
                 ))}
-                {!data?.discrepancies?.length && <EmptyRow span={8} text="Tidak ada selisih" />}
+                {!data?.discrepancies?.length && <EmptyRow span={9} text="Tidak ada selisih" />}
               </TableBody>
             </Table></div>
           </Card>

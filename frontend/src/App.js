@@ -9,6 +9,7 @@ import AppLayout from "@/components/AppLayout";
 import DashboardPage from "@/pages/admin/DashboardPage";
 import MasterBarangPage from "@/pages/admin/MasterBarangPage";
 import BarangMasukPage from "@/pages/admin/BarangMasukPage";
+import SalesPage from "@/pages/admin/SalesPage";
 import PenugasanPage from "@/pages/admin/PenugasanPage";
 import UsersPage from "@/pages/admin/UsersPage";
 import SummaryPage from "@/pages/admin/SummaryPage";
@@ -59,6 +60,7 @@ function App() {
               <Route path="/admin/dashboard" element={<DashboardPage />} />
               <Route path="/admin/master-barang" element={<MasterBarangPage />} />
               <Route path="/admin/barang-masuk" element={<BarangMasukPage />} />
+              <Route path="/admin/penjualan" element={<SalesPage />} />
               <Route path="/admin/penugasan" element={<PenugasanPage />} />
               <Route path="/admin/karyawan" element={<UsersPage />} />
               <Route path="/admin/summary" element={<SummaryPage />} />

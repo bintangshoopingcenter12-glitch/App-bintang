@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  ClipboardCheck, CheckCircle2, Clock, MapPin, Tag, Lock, ScanLine,
+  ClipboardCheck, CheckCircle2, Clock, MapPin, Tag, Lock, ScanLine, Barcode, Search,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,6 +22,7 @@ export default function MyTasksPage() {
   const [stok, setStok] = useState("");
   const [catatan, setCatatan] = useState("");
   const [saving, setSaving] = useState(false);
+  const [q, setQ] = useState("");
 
   const load = () => api.get("/my-tasks").then((r) => setTasks(r.data)).catch((e) => toast.error(apiError(e)));
   useEffect(() => { load(); }, []);
@@ -46,6 +47,9 @@ export default function MyTasksPage() {
 
   const done = tasks.filter((t) => t.status === "dicek").length;
   const pending = tasks.length - done;
+  const filtered = tasks.filter((t) =>
+    [t.nama, t.kode, t.barcode].some((v) => (v || "").toLowerCase().includes(q.toLowerCase()))
+  );
 
   return (
     <div className="space-y-6" data-testid="my-tasks-page">
@@ -73,8 +77,13 @@ export default function MyTasksPage() {
         </CardContent></Card>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Input data-testid="my-tasks-search" className="pl-9" placeholder="Cari / scan barcode, kode, atau nama..." value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {tasks.map((t) => (
+        {filtered.map((t) => (
           <Card key={t.id} data-testid={`task-card-${t.kode}`} className="group border-slate-200 transition-shadow hover:shadow-md">
             <CardContent className="space-y-3 p-5">
               <div className="flex items-start justify-between gap-2">
@@ -87,6 +96,7 @@ export default function MyTasksPage() {
                   : <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Belum</Badge>}
               </div>
               <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                <span className="flex items-center gap-1 font-mono"><Barcode className="h-3.5 w-3.5" />{t.barcode || "-"}</span>
                 <span className="flex items-center gap-1"><Tag className="h-3.5 w-3.5" />{t.kategori || "-"}</span>
                 <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{t.lokasi_rak || "-"}</span>
               </div>
@@ -110,6 +120,11 @@ export default function MyTasksPage() {
         {tasks.length === 0 && (
           <div className="col-span-full py-16 text-center text-slate-400">
             <ClipboardCheck className="mx-auto mb-2 h-10 w-10" />Belum ada tugas cek stok untuk Anda.
+          </div>
+        )}
+        {tasks.length > 0 && filtered.length === 0 && (
+          <div className="col-span-full py-16 text-center text-slate-400">
+            <Search className="mx-auto mb-2 h-10 w-10" />Tidak ada tugas yang cocok dengan pencarian.
           </div>
         )}
       </div>

@@ -8,14 +8,27 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ArrowDownLeft, Save, Info } from "lucide-react";
+import { ArrowDownLeft, Save, Info, Barcode, Search } from "lucide-react";
 import { toast } from "sonner";
 
-const empty = { kode: "", nama: "", kategori: "", jumlah: 1, lokasi_rak: "", supplier: "", keterangan: "" };
+const empty = { kode: "", nama: "", kategori: "", barcode: "", jumlah: 1, lokasi_rak: "", supplier: "", keterangan: "" };
 
 export default function BarangMasukPage() {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState(empty);
+  const [scanCode, setScanCode] = useState("");
+
+  const lookup = async () => {
+    if (!scanCode.trim()) return;
+    try {
+      const { data } = await api.get("/barang/lookup", { params: { code: scanCode.trim() } });
+      setForm((f) => ({ ...f, kode: data.kode, nama: data.nama, kategori: data.kategori || "",
+        barcode: data.barcode || "", lokasi_rak: data.lokasi_rak || f.lokasi_rak }));
+      toast.success(`Ditemukan: ${data.nama}`);
+    } catch (e) {
+      toast.error(apiError(e));
+    }
+  };
 
   const load = () => api.get("/barang-masuk").then((r) => setRows(r.data)).catch((e) => toast.error(apiError(e)));
   useEffect(() => { load(); }, []);
@@ -42,6 +55,17 @@ export default function BarangMasukPage() {
         <Card className="border-slate-200 p-5 lg:col-span-5">
           <form onSubmit={submit} className="space-y-4">
             <h3 className="font-heading font-semibold text-slate-900">Form Barang Masuk</h3>
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5"><Barcode className="h-3.5 w-3.5" /> Scan Barcode / SKU</Label>
+              <div className="flex gap-2">
+                <Input data-testid="inbound-scan-input" className="font-mono" placeholder="Scan untuk isi otomatis"
+                       value={scanCode} onChange={(e) => setScanCode(e.target.value)}
+                       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); lookup(); } }} />
+                <Button type="button" variant="outline" data-testid="inbound-scan-btn" onClick={lookup} className="gap-1.5">
+                  <Search className="h-4 w-4" /> Cari
+                </Button>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>Kode / SKU</Label>
                 <Input data-testid="inbound-kode-input" value={form.kode} onChange={(e) => setForm({ ...form, kode: e.target.value })} required /></div>
