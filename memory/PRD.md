@@ -19,6 +19,14 @@ Comprehensive Stock Checking Module (Cek Stok) with strict RBAC (Admin vs Employ
 - Admin Summary: metric cards + per-employee breakdown + 5 separate tabs (Belum Dicek, Barang Habis=0, Sisa Stok Sedikit ≤min, Barang Selisih system≠physical).
 
 ## Implemented (2026-09-24)
+### Iteration 2 — Sales Module + Barcode
+- Barcode field on all products (auto-generated EAN-13 if blank, or manual; unique). Startup backfill for existing items.
+- `GET /api/barang/lookup?code=` (barcode OR SKU; role-aware — employee response omits system stock).
+- Sales (Penjualan): `POST /api/sales/preview` (parse tab/comma paste, validate → ok/not_found/invalid), `POST /api/sales` (deducts system stock + logs), `GET /api/sales`.
+- Frontend: SalesPage (bulk copy-paste + preview/validate + single barcode scan entry + sales report), barcode column in Master Data & all 4 summary exception tabs, barcode scan autofill in Barang Masuk, barcode display + search/scan in employee Cek Stok.
+- Verified: testing agent iteration_2 = 100% backend + 100% frontend.
+
+### Iteration 1 — Core
 - JWT username auth (login/logout/me/refresh), brute-force lockout, idempotent admin + demo employee seeding.
 - Master Barang CRUD, categories endpoint.
 - Barang Masuk (inbound) with rack auto-update to master + stock increment.
