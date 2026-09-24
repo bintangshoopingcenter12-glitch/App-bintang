@@ -1,0 +1,144 @@
+{
+  "project_name": "Sistem Manajemen Stok & Cek Fisik Warehouse (Stock Opname RBAC)",
+  "language": "Bahasa Indonesia",
+  "archetype": "Swiss & High-Contrast Performance Pro (Data Clarity & Precision)",
+  "color_palette": {
+    "primary": "#0F172A",
+    "primary_hover": "#1E293B",
+    "accent_indigo": "#4F46E5",
+    "accent_emerald": "#10B981",
+    "accent_amber": "#F59E0B",
+    "accent_rose": "#EF4444",
+    "background_light": "#F8FAFC",
+    "card_light": "#FFFFFF",
+    "border_light": "#E2E8F0",
+    "text_primary_light": "#0F172A",
+    "text_muted_light": "#64748B",
+    "background_dark": "#090D16",
+    "card_dark": "#131C2E",
+    "border_dark": "#1E293B"
+  },
+  "typography": {
+    "font_family_heading": "Plus Jakarta Sans, sans-serif",
+    "font_family_body": "Inter, sans-serif",
+    "font_family_mono": "JetBrains Mono, monospace",
+    "hierarchy": {
+      "h1_hero": "text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100",
+      "h2_section": "text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100",
+      "h3_card": "text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100",
+      "body": "text-sm text-slate-600 dark:text-slate-300 leading-relaxed",
+      "caption": "text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider"
+    }
+  },
+  "layout_and_spacing": {
+    "sidebar_width": "w-64",
+    "topbar_height": "h-16",
+    "container_padding": "p-4 sm:p-6 lg:p-8 space-y-6",
+    "card_padding": "p-5 sm:p-6",
+    "grid_dashboard": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6",
+    "bento_grid": "grid grid-cols-1 lg:grid-cols-12 gap-6"
+  },
+  "role_based_access_control": {
+    "ADMIN_ROLE": {
+      "permissions": [
+        "Full Master Data CRUD (Tambah, Edit, Hapus Barang)",
+        "Lihat Stok Sistem & Minimum Stok",
+        "Pencatatan Barang Masuk (Inbound Goods) + Master Lokasi Rak",
+        "Penugasan Cek Stok ke Karyawan (Assign Tasks)",
+        "Akses Tombol 'Rangkuman Cek Stok' (Admin Summary Dashboard)",
+        "Visualisasi Analytics & Breakdown per Karyawan",
+        "Akses Tab Laporan pengecualian (Belum Dicek, Barang Habis, Sisa Sedikit, Barang Selisih)"
+      ],
+      "navigation_items": [
+        {"label": "Dashboard Utama", "path": "/admin/dashboard", "icon": "LayoutDashboard"},
+        {"label": "Master Data Barang", "path": "/admin/master-barang", "icon": "Package"},
+        {"label": "Barang Masuk (Inbound)", "path": "/admin/barang-masuk", "icon": "ArrowDownLeft"},
+        {"label": "Penugasan Karyawan", "path": "/admin/penugasan", "icon": "UserCheck"},
+        {"label": "Rangkuman Cek Stok", "path": "/admin/summary", "icon": "BarChart3", "is_admin_primary_btn": true}
+      ]
+    },
+    "EMPLOYEE_ROLE": {
+      "permissions": [
+        "Lihat daftar tugas cek stok khusus milik sendiri ('Stock Check - [Nama Karyawan]')",
+        "HIDE System Stock (Blind Stock Count — tidak melihat jumlah stok sistem)",
+        "Input 'Stok Fisik Aktual' dan 'Catatan / Notes'",
+        "Read-Only informasi Master Data (Nama Barang, SKU, Kategori, Lokasi Rak)",
+        "Lihat status item (Belum Dicek / Sudah Dicek)"
+      ],
+      "navigation_items": [
+        {"label": "Tugas Cek Stok Saya", "path": "/employee/my-tasks", "icon": "ClipboardCheck"}
+      ]
+    }
+  },
+  "key_components_specifications": {
+    "login_screen": {
+      "title": "Login Sistem Stok & Inventory",
+      "subtitle": "Masuk menggunakan akun Admin atau Karyawan",
+      "demo_credentials_banner": "Gunakan akun demo: Admin (admin / admin123) | Karyawan (budi / user123, sdedi / user123)"
+    },
+    "blind_stock_counting_view": {
+      "title_format": "Stock Check - {Employee Name}",
+      "blind_rules": "Karyawan HANYA melihat Kode Barang, Nama Barang, Kategori, dan Lokasi Rak. Jumlah Stok Sistem DISAMBUNGKAN/DISEMBUNYIKAN (N/A) untuk mencegah kecurangan.",
+      "input_fields": ["Stok Fisik (Jumlah Aktual)", "Catatan / Keterangan Kondisi Barang"],
+      "action": "Simpan Hasil Cek (Update status ke 'Dicek')"
+    },
+    "inbound_goods_form": {
+      "title": "Form Barang Masuk (Inbound)",
+      "mandatory_fields": [
+        "Kode Barang / SKU",
+        "Nama Barang",
+        "Jumlah Masuk",
+        "Lokasi Rak / Shelf ID (Wajib)",
+        "Tanggal Masuk",
+        "Keterangan / Supplier"
+      ],
+      "behavior": "Menyimpan barang masuk akan memperbarui lokasi rak barang pada Master Data secara otomatis."
+    },
+    "admin_summary_dashboard": {
+      "metric_cards": [
+        {"title": "Total Items Ditugaskan", "data_id": "metric-total-assigned"},
+        {"title": "Total Sudah Dicek", "data_id": "metric-total-checked"},
+        {"title": "Total Belum Dicek", "data_id": "metric-total-unchecked"},
+        {"title": "Total Item Selisih", "data_id": "metric-total-discrepancy"}
+      ],
+      "tabs": [
+        {"id": "tab-breakdown", "label": "Rangkuman Per Karyawan"},
+        {"id": "tab-unchecked", "label": "Belum Dicek"},
+        {"id": "tab-out-of-stock", "label": "Barang Habis (0)"},
+        {"id": "tab-low-stock", "label": "Sisa Stok Sedikit (Low)"},
+        {"id": "tab-discrepancies", "label": "Barang Selisih (Selisih Fisik vs Sistem)"}
+      ]
+    }
+  },
+  "testing_and_data_testid_guidelines": {
+    "rule": "Semua elemen interaktif, tombol, input, tabel, modal, dan badge HARUS memiliki data-testid dengan format kebab-case.",
+    "examples": [
+      "data-testid=\"login-username-input\"",
+      "data-testid=\"login-password-input\"",
+      "data-testid=\"login-submit-button\"",
+      "data-testid=\"nav-admin-summary-button\"",
+      "data-testid=\"nav-master-barang\"",
+      "data-testid=\"btn-add-master-barang\"",
+      "data-testid=\"inbound-rack-location-input\"",
+      "data-testid=\"employee-physical-stock-input-{itemId}\"",
+      "data-testid=\"employee-save-stock-btn-{itemId}\"",
+      "data-testid=\"tab-discrepancy-items\""
+    ]
+  },
+  "image_assets": {
+    "warehouse_hero_bg": "https://images.unsplash.com/photo-1586528116022-aeda1613c63d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjB3YXJlaG91c2UlMjBpbnZlbnRvcnklMjBsb2dpc3RpY3MlMjB3b3JrZXJ8ZW58MHx8fHwxNzkwMjI0NTMyfDA&ixlib=rb-4.1.0&q=85",
+    "warehouse_worker_1": "https://images.pexels.com/photos/4483938/pexels-photo-4483938.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "warehouse_worker_2": "https://images.pexels.com/photos/4487383/pexels-photo-4487383.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+  },
+  "instructions_to_main_agent": [
+    "Pastikan seluruh Tampilan Menggunakan Bahasa Indonesia.",
+    "Role-based routing: Admin dapat berpindah role atau logout. Terdapat switcher cepat / login kredensial demo agar penguji dapat mencoba role Admin & Karyawan dengan mudah.",
+    "Header/Top Navbar harus selalu menampilkan Role aktif (Admin vs Karyawan), Nama User, dan Tombol Logout.",
+    "Tampilan Karyawan HARUS menampilkan judul halaman 'Stock Check - [Nama Karyawan]' dan HIDE stok sistem secara total di tampilan tabel/form karyawan.",
+    "Akses tombol 'Rangkuman Cek Stok' hanya tersedia di view Admin.",
+    "Form Barang Masuk wajib menyertakan input 'Lokasi Rak / Shelf ID' yang langsung meng-update lokasi rak di Master Barang.",
+    "Gunakan komponen Radix/Shadcn UI yang sudah ada di src/components/ui/ (Dialog, Select, Table, Tabs, Badge, Input, Card, Button, Accordion, Toast).",
+    "Gunakan Lucide React untuk ikon (Package, LayoutDashboard, ClipboardCheck, AlertTriangle, ArrowDownLeft, BarChart3, Users, CheckCircle, Search, Edit, Trash2).",
+    "Semua komponen interaktif dan data harus diberi data-testid untuk kestabilan testing."
+  ]
+}
