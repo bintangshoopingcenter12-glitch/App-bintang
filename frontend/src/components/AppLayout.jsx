@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard, Package, ArrowDownLeft, UserCheck, BarChart3,
-  ClipboardCheck, Users, LogOut, Menu, X, Boxes, ShoppingCart,
+  ClipboardCheck, Users, LogOut, Menu, X, Boxes, ShoppingCart, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 const adminNav = [
   { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard, tid: "nav-dashboard" },
   { label: "Master Data Barang", path: "/admin/master-barang", icon: Package, tid: "nav-master-barang" },
+  { label: "Cari Barang", path: "/admin/cari-barang", icon: Search, tid: "nav-cari-barang" },
   { label: "Barang Masuk", path: "/admin/barang-masuk", icon: ArrowDownLeft, tid: "nav-barang-masuk" },
   { label: "Penjualan", path: "/admin/penjualan", icon: ShoppingCart, tid: "nav-penjualan" },
   { label: "Penugasan Karyawan", path: "/admin/penugasan", icon: UserCheck, tid: "nav-penugasan" },

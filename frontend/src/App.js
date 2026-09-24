@@ -8,6 +8,7 @@ import LoginPage from "@/pages/LoginPage";
 import AppLayout from "@/components/AppLayout";
 import DashboardPage from "@/pages/admin/DashboardPage";
 import MasterBarangPage from "@/pages/admin/MasterBarangPage";
+import CariBarangPage from "@/pages/admin/CariBarangPage";
 import BarangMasukPage from "@/pages/admin/BarangMasukPage";
 import SalesPage from "@/pages/admin/SalesPage";
 import PenugasanPage from "@/pages/admin/PenugasanPage";
@@ -59,6 +60,7 @@ function App() {
             >
               <Route path="/admin/dashboard" element={<DashboardPage />} />
               <Route path="/admin/master-barang" element={<MasterBarangPage />} />
+              <Route path="/admin/cari-barang" element={<CariBarangPage />} />
               <Route path="/admin/barang-masuk" element={<BarangMasukPage />} />
               <Route path="/admin/penjualan" element={<SalesPage />} />
               <Route path="/admin/penugasan" element={<PenugasanPage />} />

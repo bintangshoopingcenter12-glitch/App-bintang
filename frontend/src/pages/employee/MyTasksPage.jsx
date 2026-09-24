@@ -23,6 +23,7 @@ export default function MyTasksPage() {
   const [catatan, setCatatan] = useState("");
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
+  const [scanCode, setScanCode] = useState("");
 
   const load = () => api.get("/my-tasks").then((r) => setTasks(r.data)).catch((e) => toast.error(apiError(e)));
   useEffect(() => { load(); }, []);
@@ -31,6 +32,20 @@ export default function MyTasksPage() {
     setActive(t);
     setStok(t.stok_fisik != null ? String(t.stok_fisik) : "");
     setCatatan(t.catatan || "");
+  };
+
+  const handleScan = () => {
+    const code = scanCode.trim().toLowerCase();
+    if (!code) return;
+    const t = tasks.find(
+      (x) => (x.barcode || "").toLowerCase() === code || (x.kode || "").toLowerCase() === code
+    );
+    if (t) {
+      openCheck(t);
+      setScanCode("");
+    } else {
+      toast.error("Barcode tidak ditemukan di daftar tugas Anda");
+    }
   };
 
   const submit = async () => {
@@ -77,9 +92,27 @@ export default function MyTasksPage() {
         </CardContent></Card>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <Input data-testid="my-tasks-search" className="pl-9" placeholder="Cari / scan barcode, kode, atau nama..." value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-1 gap-2">
+          <div className="relative flex-1">
+            <Barcode className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500" />
+            <Input
+              data-testid="my-tasks-scan-input"
+              className="pl-9 font-mono"
+              placeholder="Scan barcode untuk langsung input cek fisik..."
+              value={scanCode}
+              onChange={(e) => setScanCode(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleScan(); } }}
+            />
+          </div>
+          <Button data-testid="my-tasks-scan-btn" onClick={handleScan} className="gap-1.5 bg-indigo-600 hover:bg-indigo-700">
+            <ScanLine className="h-4 w-4" /> Scan
+          </Button>
+        </div>
+        <div className="relative sm:w-64">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input data-testid="my-tasks-search" className="pl-9" placeholder="Cari kode / nama..." value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
