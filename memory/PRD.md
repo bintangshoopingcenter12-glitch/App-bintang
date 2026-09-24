@@ -19,6 +19,12 @@ Comprehensive Stock Checking Module (Cek Stok) with strict RBAC (Admin vs Employ
 - Admin Summary: metric cards + per-employee breakdown + 5 separate tabs (Belum Dicek, Barang Habis=0, Sisa Stok Sedikit ≤min, Barang Selisih system≠physical).
 
 ## Implemented (2026-09-24)
+### Iteration 3 — Scan Barcode di Stok Opname + Menu Cari Barang
+- Employee Stok Opname: bar **scan-to-open** — scan/ketik barcode/SKU + Enter langsung membuka dialog input cek fisik item tsb; kode di luar tugas → toast error. Text search dipertahankan.
+- Menu Admin **Cari Barang** (`/admin/cari-barang`): scan barcode (via `/api/barang/lookup`) atau cari kode/nama/kategori; baris hasil scan di-highlight.
+- Blind count tetap aman (tidak ada stok sistem di halaman/dialog karyawan).
+- Verified: testing agent iteration_3 = 100% frontend.
+
 ### Iteration 2 — Sales Module + Barcode
 - Barcode field on all products (auto-generated EAN-13 if blank, or manual; unique). Startup backfill for existing items.
 - `GET /api/barang/lookup?code=` (barcode OR SKU; role-aware — employee response omits system stock).
