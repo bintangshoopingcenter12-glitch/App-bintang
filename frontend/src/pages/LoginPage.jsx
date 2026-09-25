@@ -33,18 +33,21 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="relative flex min-h-screen">
+      {/* Full-screen store background */}
+      <div
+        className="fixed inset-0 -z-10"
+        style={{
+          backgroundImage: "url('/bintang-store.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+        data-testid="login-bg"
+      />
+      <div className="fixed inset-0 -z-10 bg-slate-900/70" />
+
       {/* Left brand panel */}
-      <div className="relative hidden w-1/2 flex-col justify-between bg-slate-900 p-12 text-white lg:flex">
-        <div
-          className="absolute inset-0 opacity-25"
-          style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1586528116022-aeda1613c63d?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200')",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
+      <div className="relative hidden w-1/2 flex-col justify-between p-12 text-white lg:flex">
         <div className="relative flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600">
             <Boxes className="h-6 w-6" />
@@ -63,8 +66,8 @@ export default function LoginPage() {
       </div>
 
       {/* Right form */}
-      <div className="flex w-full items-center justify-center bg-slate-50 p-6 lg:w-1/2">
-        <div className="w-full max-w-sm animate-fade-up">
+      <div className="flex w-full items-center justify-center p-6 lg:w-1/2">
+        <div className="w-full max-w-sm animate-fade-up rounded-2xl bg-white/95 p-8 shadow-2xl backdrop-blur">
           <div className="mb-8 text-center lg:text-left">
             <h2 className="font-heading text-2xl font-bold text-slate-900">Login Sistem</h2>
             <p className="mt-1 text-sm text-slate-500">Masuk menggunakan akun Admin atau Karyawan</p>

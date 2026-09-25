@@ -18,6 +18,10 @@ Comprehensive Stock Checking Module (Cek Stok) with strict RBAC (Admin vs Employ
 - Inbound goods: mandatory Rack Location; saving auto-updates master item rack + increments stock (creates item if SKU new).
 - Admin Summary: metric cards + per-employee breakdown + 5 separate tabs (Belum Dicek, Barang Habis=0, Sisa Stok Sedikit ≤min, Barang Selisih system≠physical).
 
+### Iteration 7 — Full background foto toko + info Push GitHub
+- Halaman login memakai **foto toko Bintang Shopping Center** sebagai **full-screen background** (`/app/frontend/public/bintang-store.jpg`) + overlay `bg-slate-900/70`; form dipindah ke kartu putih (`bg-white/95` + shadow) agar tetap terbaca. Mengganti gambar Unsplash sebelumnya.
+- Push GitHub: dijelaskan via support (paket Standard+, OAuth di tab Home → Save → Save to GitHub).
+
 ## Implemented (2026-09-24)
 ### Iteration 6 — Hardening 4 tujuan (anti-404, cepat, scalable, kamera)
 - **Anti-404**: `NotFoundPage.jsx` + route catch-all `path="*"` (BrowserRouter). Diverifikasi visual di `/halaman-tidak-ada-xyz`.
