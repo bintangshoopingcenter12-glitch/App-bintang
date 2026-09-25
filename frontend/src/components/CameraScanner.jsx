@@ -9,22 +9,32 @@ function ScannerInner({ onResult }) {
   useEffect(() => {
     const elId = "camera-reader-region";
     const scanner = new Html5Qrcode(elId);
-    let done = false;
+    let cancelled = false;
     scanner
       .start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 260, height: 160 } },
         (decoded) => {
-          if (!done) {
-            done = true;
+          if (!cancelled) {
+            cancelled = true;
             onResult(decoded);
           }
         },
         () => {}
       )
-      .catch((e) => toast.error("Tidak dapat mengakses kamera: " + e));
+      .catch(() => {
+        if (!cancelled) toast.error("Tidak dapat mengakses kamera. Izinkan akses atau gunakan input manual.");
+      });
     return () => {
-      scanner.stop().then(() => scanner.clear()).catch(() => {});
+      cancelled = true;
+      try {
+        const st = scanner.getState ? scanner.getState() : 0;
+        if (st === 2 || st === 3) {
+          scanner.stop().then(() => { try { scanner.clear(); } catch (_) {} }).catch(() => {});
+        } else {
+          try { scanner.clear(); } catch (_) {}
+        }
+      } catch (_) {}
     };
   }, [onResult]);
   return <div id="camera-reader-region" className="overflow-hidden rounded-lg" style={{ width: "100%" }} />;

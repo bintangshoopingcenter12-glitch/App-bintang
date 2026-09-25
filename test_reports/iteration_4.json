@@ -1,0 +1,59 @@
+{
+  "summary": "Tested 4 new features (bulk rack, camera scanner, Excel/PDF exports, pagination + category filter). Backend: 8/8 passing (1 skipped users-shape). Frontend: bulk-rack, exports, and pagination + kategori filter all work. CRITICAL: CameraScanButton crashes the entire page with 'Uncaught Cannot stop, scanner is not running or paused' whenever camera cannot be started (headless env, denied permission, or unmount before start resolves).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "CameraScanner.jsx (CameraScanButton)",
+        "issue": "Opening camera dialog when getUserMedia fails (or dialog closes before start resolves) triggers uncaught synchronous error 'Cannot stop, scanner is not running or paused' from html5-qrcode. Emergent runtime error overlay appears and the whole page unmounts. Reproduces on inbound-camera-btn, bulk-rack-camera-btn, sales-camera-btn, cari-camera-btn (and by extension my-tasks-camera-btn). The .catch(() => {}) on scanner.stop() only catches promise rejections; html5-qrcode's stop() throws synchronously when not started.",
+        "selector": "[data-testid=\"camera-scanner-dialog\"]",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "backend_set_rack_bulk_admin": "PASS (updated 2, not_found [BOGUS_CODE_XYZ]; GET /barang/lookup confirms lokasi_rak persisted to TEST-RAK-A1)",
+    "backend_set_rack_bulk_karyawan_403": "PASS",
+    "backend_barang_export_xlsx_admin": "PASS (200, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, >1KB)",
+    "backend_barang_export_karyawan_403": "PASS",
+    "backend_summary_export_xlsx_admin": "PASS (200, xlsx ct)",
+    "backend_summary_export_pdf_admin": "PASS (200, application/pdf)",
+    "backend_summary_export_with_employee_filter": "SKIPPED (users list shape)",
+    "backend_summary_export_karyawan_403": "PASS",
+    "backend_regression_my_tasks_no_stok_sistem": "PASS (blind count preserved)",
+    "fe_master_pagination_25_per_page": "PASS (Halaman 1 dari 132 with 3290 items -> 25/page)",
+    "fe_master_prev_disabled_page1": "PASS",
+    "fe_master_next_to_page2": "PASS",
+    "fe_master_kategori_filter": "PASS (selecting 'ATK' -> 870 barang)",
+    "fe_master_search_by_barcode": "PASS (query '3713' -> 4 rows)",
+    "fe_master_export_button_triggers_api": "PASS (GET /api/barang/export -> 200 xlsx)",
+    "fe_bulk_rack_full_flow": "PASS (2 valid barcodes via Enter + Add btn, 1 bogus, Terapkan -> 200, UI shows 'Berhasil diperbarui: 2' + 'Tidak ditemukan: BOGUS_FE_XYZ')",
+    "fe_summary_export_xlsx": "PASS (route is /admin/summary; 200 xlsx)",
+    "fe_summary_export_pdf": "PASS (200 application/pdf)",
+    "fe_cari_pagination_and_kategori_filter": "PASS (cari-prev-page disabled p1, cari-next-page works, cari-kategori-filter dropdown functional)",
+    "fe_camera_buttons_exist": "PASS - all 5 buttons render (inbound/bulk-rack/sales/cari/my-tasks)",
+    "fe_camera_dialog_opens_without_crash": "FAIL - clicking any camera button crashes the entire app with runtime error 'Cannot stop, scanner is not running or paused'"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/new_features.xml"
+  ],
+  "action_items": [
+    "Fix CameraScanner.jsx: wrap scanner.stop() cleanup in try/catch (sync guard), OR check scanner.getState()===2 (SCANNING) before calling stop(). Suggested cleanup: `return () => { try { if (scanner.getState && scanner.getState() === 2) { scanner.stop().then(()=>scanner.clear()).catch(()=>{}); } } catch(_) {} };`. Also wrap ScannerInner in an ErrorBoundary so a scanner failure shows a toast instead of crashing the tree. Camera failures should be graceful in headless/no-permission scenarios."
+  ],
+  "critical_code_review_comments": [
+    "CameraScanner.jsx: html5-qrcode stop() throws sync when not started; cleanup lacks try/catch and state check -> app-level crash.",
+    "MasterBarangPage & CariBarangPage do client-side pagination on the full array (3290 rows). Works but not scalable; consider server-side pagination for very large datasets.",
+    "MasterBarangPage: barcode search uses .includes on b.barcode || '' — works for numeric prefix search (e.g., '3713' matches barcode '000000037131...'); consider case-normalizing entire filter."
+  ],
+  "updated_files": ["/app/backend/tests/test_new_features.py"],
+  "success_rate": {"backend": "100% (8/8 executed, 1 skipped)", "frontend": "6/7 flows PASS; camera crashes app"},
+  "test_credentials": "admin/admin123, budi/user123 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Bulk-rack test updated lokasi_rak of 2 real barang to 'TEST-RAK-A1' (per problem statement this was expected/acceptable).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/test_new_features.py — run `pytest backend/tests/test_new_features.py -v`. Summary page is at /admin/summary (nav label 'Rangkuman Cek Stok'). After main agent patches CameraScanner cleanup + adds error boundary, retest by clicking any camera button and confirming (a) no runtime error overlay, (b) page remains mounted (barang-masuk-page still visible), (c) a toast like 'Tidak dapat mengakses kamera' appears in headless. All other features already verified end-to-end.",
+  "rca of the issue": "CameraScanner useEffect cleanup calls scanner.stop().then().catch(). In html5-qrcode, when the scanner never entered SCANNING state (e.g., getUserMedia rejected in headless), stop() throws a synchronous Error 'Cannot stop, scanner is not running or paused'. This synchronous throw bypasses the promise .catch and becomes an uncaught error during React unmount, causing the parent tree to crash and the Emergent runtime overlay to appear. Mitigation: guard with scanner.getState() check and wrap in try/catch; also wrap ScannerInner in an ErrorBoundary."
+}
