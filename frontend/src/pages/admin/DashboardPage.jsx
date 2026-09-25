@@ -28,7 +28,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     api.get("/summary").then((r) => setOv(r.data.overview)).catch(() => {});
-    api.get("/barang").then((r) => setBarangCount(r.data.length)).catch(() => {});
+    api.get("/barang/search", { params: { limit: 1 } }).then((r) => setBarangCount(r.data.total)).catch(() => {});
   }, []);
 
   return (

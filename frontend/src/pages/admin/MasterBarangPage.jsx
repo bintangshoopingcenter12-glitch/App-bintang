@@ -30,18 +30,31 @@ function genEan13() {
 
 export default function MasterBarangPage() {
   const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
   const [q, setQ] = useState("");
   const [kategoriFilter, setKategoriFilter] = useState("all");
+  const [kategoriList, setKategoriList] = useState([]);
   const [page, setPage] = useState(1);
-  const perPage = 25;
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [delItem, setDelItem] = useState(null);
 
-  const load = () => api.get("/barang").then((r) => setItems(r.data)).catch((e) => toast.error(apiError(e)));
-  useEffect(() => { load(); }, []);
-  useEffect(() => { setPage(1); }, [q, kategoriFilter, items.length]);
+  const load = () => {
+    api.get("/barang/search", { params: { q, kategori: kategoriFilter, page, limit: 25 } })
+      .then((r) => { setItems(r.data.items); setTotal(r.data.total); setPages(r.data.pages); })
+      .catch((e) => toast.error(apiError(e)));
+  };
+  useEffect(() => {
+    api.get("/barang/kategori").then((r) => setKategoriList(r.data)).catch(() => {});
+  }, []);
+  useEffect(() => { setPage(1); }, [q, kategoriFilter]);
+  useEffect(() => {
+    const t = setTimeout(load, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, kategoriFilter, page]);
 
   const openNew = () => { setForm(empty); setEditId(null); setOpen(true); };
   const openEdit = (b) => { setForm({ ...b }); setEditId(b.id); setOpen(true); };
@@ -72,15 +85,8 @@ export default function MasterBarangPage() {
     } catch (e) { toast.error(apiError(e)); }
   };
 
-  const kategoriList = [...new Set(items.map((b) => b.kategori).filter(Boolean))].sort();
-  const filtered = items.filter(
-    (b) =>
-      (kategoriFilter === "all" || b.kategori === kategoriFilter) &&
-      (b.nama.toLowerCase().includes(q.toLowerCase()) || b.kode.toLowerCase().includes(q.toLowerCase()) ||
-        (b.barcode || "").includes(q))
-  );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = filtered.slice((page - 1) * perPage, page * perPage);
+  const totalPages = pages;
+  const pageItems = items;
 
   return (
     <div className="space-y-6" data-testid="master-barang-page">
@@ -111,7 +117,7 @@ export default function MasterBarangPage() {
             {kategoriList.map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
           </SelectContent>
         </Select>
-        <span className="text-xs text-slate-500">{filtered.length} barang</span>
+        <span className="text-xs text-slate-500">{total} barang</span>
       </div>
 
       <Card className="overflow-hidden border-slate-200">
@@ -153,7 +159,7 @@ export default function MasterBarangPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filtered.length === 0 && (
+              {pageItems.length === 0 && (
                 <TableRow><TableCell colSpan={9} className="py-10 text-center text-slate-400">
                   <Package className="mx-auto mb-2 h-8 w-8" />Tidak ada barang
                 </TableCell></TableRow>

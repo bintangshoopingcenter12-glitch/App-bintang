@@ -1,40 +1,42 @@
-import { useEffect, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera } from "lucide-react";
 import { toast } from "sonner";
 
 function ScannerInner({ onResult }) {
+  const scannerRef = useRef(null);
   useEffect(() => {
-    const elId = "camera-reader-region";
-    const scanner = new Html5Qrcode(elId);
     let cancelled = false;
-    scanner
-      .start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 260, height: 160 } },
-        (decoded) => {
-          if (!cancelled) {
-            cancelled = true;
-            onResult(decoded);
-          }
-        },
-        () => {}
-      )
-      .catch(() => {
+    (async () => {
+      try {
+        const { Html5Qrcode } = await import("html5-qrcode");
+        if (cancelled) return;
+        const scanner = new Html5Qrcode("camera-reader-region");
+        scannerRef.current = scanner;
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 260, height: 160 } },
+          (decoded) => { if (!cancelled) { cancelled = true; onResult(decoded); } },
+          () => {}
+        );
+      } catch (e) {
         if (!cancelled) toast.error("Tidak dapat mengakses kamera. Izinkan akses atau gunakan input manual.");
-      });
+      }
+    })();
     return () => {
       cancelled = true;
-      try {
-        const st = scanner.getState ? scanner.getState() : 0;
-        if (st === 2 || st === 3) {
-          scanner.stop().then(() => { try { scanner.clear(); } catch (_) {} }).catch(() => {});
-        } else {
-          try { scanner.clear(); } catch (_) {}
-        }
-      } catch (_) {}
+      const scanner = scannerRef.current;
+      if (scanner) {
+        try {
+          const st = scanner.getState ? scanner.getState() : 0;
+          if (st === 2 || st === 3) {
+            scanner.stop().then(() => { try { scanner.clear(); } catch (_) {} }).catch(() => {});
+          } else {
+            try { scanner.clear(); } catch (_) {}
+          }
+        } catch (_) {}
+      }
     };
   }, [onResult]);
   return <div id="camera-reader-region" className="overflow-hidden rounded-lg" style={{ width: "100%" }} />;

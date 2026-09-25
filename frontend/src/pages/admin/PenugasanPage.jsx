@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api, { apiError } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -14,9 +15,11 @@ import { toast } from "sonner";
 
 export default function PenugasanPage() {
   const [tugas, setTugas] = useState([]);
-  const [barang, setBarang] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [selBarang, setSelBarang] = useState("");
+  const [selBarangLabel, setSelBarangLabel] = useState("");
+  const [barangQuery, setBarangQuery] = useState("");
+  const [barangResults, setBarangResults] = useState([]);
   const [selEmp, setSelEmp] = useState("");
   const [filterEmp, setFilterEmp] = useState("all");
 
@@ -25,16 +28,24 @@ export default function PenugasanPage() {
   };
   useEffect(() => {
     load();
-    api.get("/barang").then((r) => setBarang(r.data)).catch(() => {});
     api.get("/users").then((r) => setEmployees(r.data.filter((u) => u.role === "employee"))).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!barangQuery.trim()) { setBarangResults([]); return; }
+    const t = setTimeout(() => {
+      api.get("/barang/search", { params: { q: barangQuery, limit: 8 } })
+        .then((r) => setBarangResults(r.data.items)).catch(() => {});
+    }, 250);
+    return () => clearTimeout(t);
+  }, [barangQuery]);
 
   const assign = async () => {
     if (!selBarang || !selEmp) { toast.error("Pilih barang dan karyawan"); return; }
     try {
       await api.post("/penugasan", { barang_id: selBarang, employee_id: selEmp });
       toast.success("Barang ditugaskan");
-      setSelBarang(""); setSelEmp("");
+      setSelBarang(""); setSelBarangLabel(""); setBarangQuery(""); setBarangResults([]); setSelEmp("");
       load();
     } catch (e) { toast.error(apiError(e)); }
   };
@@ -55,16 +66,29 @@ export default function PenugasanPage() {
 
       <Card className="border-slate-200 p-5">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[220px] flex-1 space-y-1.5">
+          <div className="relative min-w-[240px] flex-1 space-y-1.5">
             <label className="text-xs font-medium text-slate-600">Barang</label>
-            <Select value={selBarang} onValueChange={setSelBarang}>
-              <SelectTrigger data-testid="assign-barang-select"><SelectValue placeholder="Pilih barang" /></SelectTrigger>
-              <SelectContent>
-                {barang.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.kode} — {b.nama}</SelectItem>
+            <Input
+              data-testid="assign-barang-search"
+              placeholder="Ketik kode / nama / barcode..."
+              value={selBarang ? selBarangLabel : barangQuery}
+              onChange={(e) => { setSelBarang(""); setSelBarangLabel(""); setBarangQuery(e.target.value); }}
+            />
+            {barangResults.length > 0 && !selBarang && (
+              <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg" data-testid="assign-barang-results">
+                {barangResults.map((b) => (
+                  <button
+                    type="button"
+                    key={b.id}
+                    data-testid={`assign-barang-option-${b.kode}`}
+                    onClick={() => { setSelBarang(b.id); setSelBarangLabel(`${b.kode} — ${b.nama}`); setBarangResults([]); }}
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                  >
+                    <span className="font-mono text-xs text-slate-500">{b.kode}</span> — {b.nama}
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
+              </div>
+            )}
           </div>
           <div className="min-w-[200px] flex-1 space-y-1.5">
             <label className="text-xs font-medium text-slate-600">Karyawan</label>
