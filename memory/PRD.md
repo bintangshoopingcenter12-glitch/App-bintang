@@ -19,6 +19,13 @@ Comprehensive Stock Checking Module (Cek Stok) with strict RBAC (Admin vs Employ
 - Admin Summary: metric cards + per-employee breakdown + 5 separate tabs (Belum Dicek, Barang Habis=0, Sisa Stok Sedikit ≤min, Barang Selisih system≠physical).
 
 ## Implemented (2026-09-24)
+### Iteration 5 — Set Rak Massal, Kamera Scanner, Ekspor Excel/PDF, Paginasi+Filter
+- **Set Lokasi Rak Massal**: tab baru di Barang Masuk — set 1 rak + scan/tambah banyak barcode (chip) → `POST /api/barang/set-rack-bulk` (updated + not_found).
+- **Kamera Scanner**: komponen `CameraScanButton` (html5-qrcode) di Barang Masuk, Cek Stok, Penjualan, Cari Barang, Set Rak Massal. Cleanup di-guard `getState()` + try/catch (tidak crash saat kamera gagal/headless).
+- **Ekspor**: `GET /api/barang/export` (xlsx, openpyxl) → tombol Unduh Excel di Master; `GET /api/summary/export?format=xlsx|pdf` (openpyxl + reportlab) → tombol Excel/PDF di Rangkuman (ikut filter karyawan). Download via blob helper `downloadFile` (withCredentials).
+- **Paginasi + Filter Kategori**: Master Barang & Cari Barang (25/halaman, dropdown kategori, prev/next). `_compute_summary` di-refactor jadi helper bersama.
+- Verified: testing agent iteration_4 (backend 8/8, FE 6/7) + iteration_5 (camera fix 100%).
+
 ### Iteration 4 — Impor Data Produk Asli (produk-bintang.xlsx)
 - Mengganti data demo dengan **3.290 produk asli** (Toko Bintang) via `/app/scripts/import_products.py` (parse openpyxl → MongoDB, batch insert).
 - Setiap produk punya **barcode unik** (barcode asli dari file; yang kosong/duplikat di-generate EAN-13 otomatis agar bisa discan). kode juga dijamin unik.
