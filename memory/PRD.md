@@ -19,6 +19,13 @@ Comprehensive Stock Checking Module (Cek Stok) with strict RBAC (Admin vs Employ
 - Admin Summary: metric cards + per-employee breakdown + 5 separate tabs (Belum Dicek, Barang Habis=0, Sisa Stok Sedikit ≤min, Barang Selisih system≠physical).
 
 ## Implemented (2026-09-24)
+### Iteration 6 — Hardening 4 tujuan (anti-404, cepat, scalable, kamera)
+- **Anti-404**: `NotFoundPage.jsx` + route catch-all `path="*"` (BrowserRouter). Diverifikasi visual di `/halaman-tidak-ada-xyz`.
+- **Pencarian cepat <200ms**: index MongoDB pada `nama`, `kategori`, `barcode`, `kode`. `GET /api/barang/search?q=&kategori=&page=&limit=` (regex + count + skip/limit). Latency 24ms lokal / 110ms via ingress untuk 3.290 data.
+- **Scalable 10k+ SKU**: Cari Barang di-rewire ke search server-side (debounce 250ms + paginasi server), tidak lagi memuat semua di browser.
+- **Kamera barcode**: sudah ada (html5-qrcode) dari iterasi sebelumnya.
+- Catatan platform: stack Emergent tetap React(CRA)+FastAPI+MongoDB; Node/Express/Postgres/Prisma/Vite tidak didukung di runtime ini (bisa via GitHub + deploy eksternal).
+
 ### Iteration 5 — Set Rak Massal, Kamera Scanner, Ekspor Excel/PDF, Paginasi+Filter
 - **Set Lokasi Rak Massal**: tab baru di Barang Masuk — set 1 rak + scan/tambah banyak barcode (chip) → `POST /api/barang/set-rack-bulk` (updated + not_found).
 - **Kamera Scanner**: komponen `CameraScanButton` (html5-qrcode) di Barang Masuk, Cek Stok, Penjualan, Cari Barang, Set Rak Massal. Cleanup di-guard `getState()` + try/catch (tidak crash saat kamera gagal/headless).

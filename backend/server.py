@@ -343,6 +343,26 @@ async def barang_lookup(code: str, request: Request):
     return barang_public(b)
 
 
+@api_router.get("/barang/search")
+async def search_barang(admin: dict = Depends(require_admin), q: str = "", kategori: str = "all",
+                        page: int = 1, limit: int = 25):
+    import re
+    query = {}
+    if kategori and kategori != "all":
+        query["kategori"] = kategori
+    if q.strip():
+        rx = re.escape(q.strip())
+        query["$or"] = [{"nama": {"$regex": rx, "$options": "i"}},
+                        {"kode": {"$regex": rx, "$options": "i"}},
+                        {"barcode": {"$regex": rx, "$options": "i"}}]
+    total = await db.barang.count_documents(query)
+    limit = max(1, min(limit, 100))
+    skip = max(0, (page - 1) * limit)
+    items = await db.barang.find(query).sort("nama", 1).skip(skip).limit(limit).to_list(limit)
+    return {"items": [barang_public(b) for b in items], "total": total, "page": page,
+            "limit": limit, "pages": max(1, (total + limit - 1) // limit)}
+
+
 @api_router.get("/barang")
 async def list_barang(admin: dict = Depends(require_admin)):
     items = await db.barang.find().sort("nama", 1).to_list(20000)
@@ -917,6 +937,8 @@ async def startup():
     await db.login_attempts.create_index("identifier")
     await db.barang.create_index("kode", unique=True)
     await db.barang.create_index("barcode")
+    await db.barang.create_index("nama")
+    await db.barang.create_index("kategori")
     await db.tugas.create_index("employee_id")
     await seed()
     async for b in db.barang.find({"$or": [{"barcode": {"$exists": False}}, {"barcode": ""}]}):

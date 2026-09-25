@@ -15,18 +15,29 @@ import { toast } from "sonner";
 
 export default function CariBarangPage() {
   const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
   const [q, setQ] = useState("");
   const [scan, setScan] = useState("");
   const [highlight, setHighlight] = useState(null);
   const [kategori, setKategori] = useState("all");
+  const [kategoriList, setKategoriList] = useState([]);
   const [page, setPage] = useState(1);
-  const perPage = 25;
 
   useEffect(() => {
-    api.get("/barang").then((r) => setItems(r.data)).catch((e) => toast.error(apiError(e)));
+    api.get("/barang/kategori").then((r) => setKategoriList(r.data)).catch(() => {});
   }, []);
 
-  useEffect(() => { setPage(1); }, [q, kategori, items.length]);
+  useEffect(() => { setPage(1); }, [q, kategori]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      api.get("/barang/search", { params: { q, kategori, page, limit: 25 } })
+        .then((r) => { setItems(r.data.items); setTotal(r.data.total); setPages(r.data.pages); })
+        .catch((e) => toast.error(apiError(e)));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q, kategori, page]);
 
   const doScan = async (codeArg) => {
     const code = (typeof codeArg === "string" ? codeArg : scan).trim();
@@ -43,13 +54,8 @@ export default function CariBarangPage() {
     }
   };
 
-  const kategoriList = [...new Set(items.map((b) => b.kategori).filter(Boolean))].sort();
-  const filtered = items.filter((b) =>
-    (kategori === "all" || b.kategori === kategori) &&
-    [b.nama, b.kode, b.barcode, b.kategori].some((v) => (v || "").toLowerCase().includes(q.toLowerCase()))
-  );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = filtered.slice((page - 1) * perPage, page * perPage);
+  const totalPages = pages;
+  const pageItems = items;
 
   return (
     <div className="space-y-6" data-testid="cari-barang-page">
@@ -95,7 +101,7 @@ export default function CariBarangPage() {
             </SelectContent>
           </Select>
         </div>
-        <p className="mt-3 text-xs text-slate-500">{filtered.length} barang ditemukan</p>
+        <p className="mt-3 text-xs text-slate-500">{total} barang ditemukan</p>
       </Card>
 
       <Card className="overflow-hidden border-slate-200">
@@ -130,7 +136,7 @@ export default function CariBarangPage() {
                   <TableCell className="text-right text-slate-500">{b.stok_minimum}</TableCell>
                 </TableRow>
               ))}
-              {filtered.length === 0 && (
+              {pageItems.length === 0 && (
                 <TableRow><TableCell colSpan={8} className="py-10 text-center text-slate-400">
                   <PackageSearch className="mx-auto mb-2 h-8 w-8" />Tidak ada barang yang cocok
                 </TableCell></TableRow>

@@ -15,6 +15,7 @@ import PenugasanPage from "@/pages/admin/PenugasanPage";
 import UsersPage from "@/pages/admin/UsersPage";
 import SummaryPage from "@/pages/admin/SummaryPage";
 import MyTasksPage from "@/pages/employee/MyTasksPage";
+import NotFoundPage from "@/pages/NotFoundPage";
 
 function FullLoader() {
   return (
@@ -78,7 +79,7 @@ function App() {
               <Route path="/employee/my-tasks" element={<MyTasksPage />} />
             </Route>
 
-            <Route path="*" element={<RootRedirect />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
