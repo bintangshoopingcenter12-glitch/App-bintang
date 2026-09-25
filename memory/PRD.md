@@ -22,6 +22,16 @@ Comprehensive Stock Checking Module (Cek Stok) with strict RBAC (Admin vs Employ
 - Halaman login memakai **foto toko Bintang Shopping Center** sebagai **full-screen background** (`/app/frontend/public/bintang-store.jpg`) + overlay `bg-slate-900/70`; form dipindah ke kartu putih (`bg-white/95` + shadow) agar tetap terbaca. Mengganti gambar Unsplash sebelumnya.
 - Push GitHub: dijelaskan via support (paket Standard+, OAuth di tab Home → Save → Save to GitHub).
 
+### Iteration 8 — Penugasan berbasis RAK (auto-assign) + housekeeping
+- **Collections baru**: `locations` (rak: kode_rak, nama_rak, zona, kapasitas), `assignments` (user_id, kode_rak, shift, tanggal, jenis_tugas, status), `assignment_logs`. Seed: 10 rak (A1-A5,B1-B5), 120 produk terdistribusi (~12/rak), 6 penugasan hari ini.
+- **Auto-assign**: admin menugaskan 1 RAK ke karyawan → semua barang di rak itu otomatis jadi tugas (tanpa assign per-item). Barang baru di rak tsb otomatis muncul.
+- **Halaman /admin/assignments**: 3 tab (Per Rak / Per Karyawan / Per Shift) + filter tanggal/shift/zona/status + form buat penugasan; kartu progress + badge status berwarna (pending kuning / progress biru / done hijau).
+- **Karyawan /employee/my-racks**: "Tugas Anda hari ini: A1, A2..."; kartu rak expand → daftar barang (BLIND, tanpa stok sistem) + Tandai Selesai + cari/scan (warning jika barcode bukan rak tugasnya). Kamera scan tersedia.
+- **Filter rak/zona** di `/api/barang/search?rak=&zona=` (dipakai Penugasan & bisa dipakai pencarian).
+- **Dashboard**: widget "Tugas Hari Ini" (rak, karyawan, progress %, pending, per-zona).
+- **Housekeeping**: teks akun demo dihapus dari login; password admin direset → `admin` / `Bintang#Admin2026`.
+- Verified: testing agent iteration_6 (backend 20/20, FE 11/12) → fix redirect → iteration_7 (100% fitur yang diubah).
+
 ## Implemented (2026-09-24)
 ### Iteration 6 — Hardening 4 tujuan (anti-404, cepat, scalable, kamera)
 - **Anti-404**: `NotFoundPage.jsx` + route catch-all `path="*"` (BrowserRouter). Diverifikasi visual di `/halaman-tidak-ada-xyz`.
