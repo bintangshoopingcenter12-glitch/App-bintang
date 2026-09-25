@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  ShoppingCart, ClipboardPaste, CheckCircle2, AlertTriangle, XCircle,
+import { ShoppingCart, ClipboardPaste, CheckCircle2, AlertTriangle, XCircle,
   Barcode, Plus, Save, Info,
 } from "lucide-react";
+import { CameraScanButton } from "@/components/CameraScanner";
 import { toast } from "sonner";
 
 const rupiah = (n) => "Rp " + (Number(n) || 0).toLocaleString("id-ID");
@@ -107,9 +107,12 @@ export default function SalesPage() {
           </div>
           <div className="space-y-3">
             <div className="space-y-1.5"><Label>Barcode / SKU</Label>
-              <Input data-testid="sales-scan-barcode" className="font-mono" placeholder="Scan atau ketik barcode"
-                     value={scan.barcode} onChange={(e) => setScan({ ...scan, barcode: e.target.value })}
-                     onKeyDown={(e) => e.key === "Enter" && addScanLine()} /></div>
+              <div className="flex gap-2">
+                <Input data-testid="sales-scan-barcode" className="font-mono" placeholder="Scan atau ketik barcode"
+                       value={scan.barcode} onChange={(e) => setScan({ ...scan, barcode: e.target.value })}
+                       onKeyDown={(e) => e.key === "Enter" && addScanLine()} />
+                <CameraScanButton testid="sales-camera-btn" label="" onScan={(c) => setScan((s) => ({ ...s, barcode: c }))} />
+              </div></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>Qty</Label>
                 <Input type="number" min="1" data-testid="sales-scan-qty" value={scan.qty}

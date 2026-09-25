@@ -13,6 +13,7 @@ import {
 import {
   ClipboardCheck, CheckCircle2, Clock, MapPin, Tag, Lock, ScanLine, Barcode, Search,
 } from "lucide-react";
+import { CameraScanButton } from "@/components/CameraScanner";
 import { toast } from "sonner";
 
 export default function MyTasksPage() {
@@ -34,8 +35,8 @@ export default function MyTasksPage() {
     setCatatan(t.catatan || "");
   };
 
-  const handleScan = () => {
-    const code = scanCode.trim().toLowerCase();
+  const handleScan = (codeArg) => {
+    const code = (typeof codeArg === "string" ? codeArg : scanCode).trim().toLowerCase();
     if (!code) return;
     const t = tasks.find(
       (x) => (x.barcode || "").toLowerCase() === code || (x.kode || "").toLowerCase() === code
@@ -105,9 +106,10 @@ export default function MyTasksPage() {
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleScan(); } }}
             />
           </div>
-          <Button data-testid="my-tasks-scan-btn" onClick={handleScan} className="gap-1.5 bg-indigo-600 hover:bg-indigo-700">
+          <Button data-testid="my-tasks-scan-btn" onClick={() => handleScan()} className="gap-1.5 bg-indigo-600 hover:bg-indigo-700">
             <ScanLine className="h-4 w-4" /> Scan
           </Button>
+          <CameraScanButton testid="my-tasks-camera-btn" label="" onScan={(c) => { setScanCode(c); handleScan(c); }} />
         </div>
         <div className="relative sm:w-64">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

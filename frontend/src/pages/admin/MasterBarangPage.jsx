@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import api, { apiError } from "@/lib/api";
+import api, { apiError, downloadFile } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -15,7 +16,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Package, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 const empty = { kode: "", nama: "", kategori: "", barcode: "", lokasi_rak: "", satuan: "pcs", stok_sistem: 0, stok_minimum: 0, harga_beli: 0, harga_jual: 0 };
@@ -30,6 +31,9 @@ function genEan13() {
 export default function MasterBarangPage() {
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
+  const [kategoriFilter, setKategoriFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const perPage = 25;
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
@@ -37,6 +41,7 @@ export default function MasterBarangPage() {
 
   const load = () => api.get("/barang").then((r) => setItems(r.data)).catch((e) => toast.error(apiError(e)));
   useEffect(() => { load(); }, []);
+  useEffect(() => { setPage(1); }, [q, kategoriFilter, items.length]);
 
   const openNew = () => { setForm(empty); setEditId(null); setOpen(true); };
   const openEdit = (b) => { setForm({ ...b }); setEditId(b.id); setOpen(true); };
@@ -67,9 +72,15 @@ export default function MasterBarangPage() {
     } catch (e) { toast.error(apiError(e)); }
   };
 
+  const kategoriList = [...new Set(items.map((b) => b.kategori).filter(Boolean))].sort();
   const filtered = items.filter(
-    (b) => b.nama.toLowerCase().includes(q.toLowerCase()) || b.kode.toLowerCase().includes(q.toLowerCase())
+    (b) =>
+      (kategoriFilter === "all" || b.kategori === kategoriFilter) &&
+      (b.nama.toLowerCase().includes(q.toLowerCase()) || b.kode.toLowerCase().includes(q.toLowerCase()) ||
+        (b.barcode || "").includes(q))
   );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const pageItems = filtered.slice((page - 1) * perPage, page * perPage);
 
   return (
     <div className="space-y-6" data-testid="master-barang-page">
@@ -78,14 +89,29 @@ export default function MasterBarangPage() {
           <h1 className="font-heading text-2xl font-bold text-slate-900">Master Data Barang</h1>
           <p className="mt-1 text-sm text-slate-500">Kontrol penuh CRUD, stok sistem, dan minimum stok.</p>
         </div>
-        <Button onClick={openNew} data-testid="btn-add-master-barang" className="gap-2 bg-indigo-600 hover:bg-indigo-700">
-          <Plus className="h-4 w-4" /> Tambah Barang
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => downloadFile("/barang/export", "master-barang.xlsx")} data-testid="btn-export-barang" className="gap-2">
+            <Download className="h-4 w-4" /> Unduh Excel
+          </Button>
+          <Button onClick={openNew} data-testid="btn-add-master-barang" className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+            <Plus className="h-4 w-4" /> Tambah Barang
+          </Button>
+        </div>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <Input data-testid="master-search-input" className="pl-9" placeholder="Cari nama / kode..." value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input data-testid="master-search-input" className="pl-9" placeholder="Cari nama / kode / barcode..." value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <Select value={kategoriFilter} onValueChange={setKategoriFilter}>
+          <SelectTrigger className="w-52" data-testid="master-kategori-filter"><SelectValue placeholder="Kategori" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Kategori</SelectItem>
+            {kategoriList.map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-slate-500">{filtered.length} barang</span>
       </div>
 
       <Card className="overflow-hidden border-slate-200">
@@ -105,7 +131,7 @@ export default function MasterBarangPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((b) => (
+              {pageItems.map((b) => (
                 <TableRow key={b.id} data-testid={`barang-row-${b.kode}`}>
                   <TableCell className="font-mono text-xs">{b.kode}</TableCell>
                   <TableCell className="font-mono text-xs text-slate-500">{b.barcode || "-"}</TableCell>
@@ -136,6 +162,14 @@ export default function MasterBarangPage() {
           </Table>
         </div>
       </Card>
+
+      <div className="flex items-center justify-between" data-testid="master-pagination">
+        <span className="text-xs text-slate-500">Halaman {page} dari {totalPages}</span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} data-testid="master-prev-page"><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} data-testid="master-next-page"><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg" data-testid="barang-form-dialog">

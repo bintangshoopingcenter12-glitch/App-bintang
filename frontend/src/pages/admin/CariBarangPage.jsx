@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Search, Barcode, PackageSearch, ScanLine } from "lucide-react";
+import { Search, Barcode, PackageSearch, ScanLine, ChevronLeft, ChevronRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CameraScanButton } from "@/components/CameraScanner";
 import { toast } from "sonner";
 
 export default function CariBarangPage() {
@@ -16,15 +18,21 @@ export default function CariBarangPage() {
   const [q, setQ] = useState("");
   const [scan, setScan] = useState("");
   const [highlight, setHighlight] = useState(null);
+  const [kategori, setKategori] = useState("all");
+  const [page, setPage] = useState(1);
+  const perPage = 25;
 
   useEffect(() => {
     api.get("/barang").then((r) => setItems(r.data)).catch((e) => toast.error(apiError(e)));
   }, []);
 
-  const doScan = async () => {
-    if (!scan.trim()) return;
+  useEffect(() => { setPage(1); }, [q, kategori, items.length]);
+
+  const doScan = async (codeArg) => {
+    const code = (typeof codeArg === "string" ? codeArg : scan).trim();
+    if (!code) return;
     try {
-      const { data } = await api.get("/barang/lookup", { params: { code: scan.trim() } });
+      const { data } = await api.get("/barang/lookup", { params: { code } });
       setQ(data.kode);
       setHighlight(data.id);
       toast.success(`Ditemukan: ${data.nama}`);
@@ -35,9 +43,13 @@ export default function CariBarangPage() {
     }
   };
 
+  const kategoriList = [...new Set(items.map((b) => b.kategori).filter(Boolean))].sort();
   const filtered = items.filter((b) =>
+    (kategori === "all" || b.kategori === kategori) &&
     [b.nama, b.kode, b.barcode, b.kategori].some((v) => (v || "").toLowerCase().includes(q.toLowerCase()))
   );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const pageItems = filtered.slice((page - 1) * perPage, page * perPage);
 
   return (
     <div className="space-y-6" data-testid="cari-barang-page">
@@ -60,9 +72,10 @@ export default function CariBarangPage() {
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); doScan(); } }}
               />
             </div>
-            <Button data-testid="cari-scan-btn" onClick={doScan} className="gap-1.5 bg-indigo-600 hover:bg-indigo-700">
+            <Button data-testid="cari-scan-btn" onClick={() => doScan()} className="gap-1.5 bg-indigo-600 hover:bg-indigo-700">
               <ScanLine className="h-4 w-4" /> Scan
             </Button>
+            <CameraScanButton testid="cari-camera-btn" label="" onScan={(c) => { setScan(c); doScan(c); }} />
           </div>
           <div className="relative sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -74,6 +87,13 @@ export default function CariBarangPage() {
               onChange={(e) => { setQ(e.target.value); setHighlight(null); }}
             />
           </div>
+          <Select value={kategori} onValueChange={setKategori}>
+            <SelectTrigger className="sm:w-52" data-testid="cari-kategori-filter"><SelectValue placeholder="Kategori" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Kategori</SelectItem>
+              {kategoriList.map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <p className="mt-3 text-xs text-slate-500">{filtered.length} barang ditemukan</p>
       </Card>
@@ -94,7 +114,7 @@ export default function CariBarangPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((b) => (
+              {pageItems.map((b) => (
                 <TableRow
                   key={b.id}
                   data-testid={`cari-row-${b.kode}`}
@@ -119,6 +139,14 @@ export default function CariBarangPage() {
           </Table>
         </div>
       </Card>
+
+      <div className="flex items-center justify-between" data-testid="cari-pagination">
+        <span className="text-xs text-slate-500">Halaman {page} dari {totalPages}</span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} data-testid="cari-prev-page"><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} data-testid="cari-next-page"><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+      </div>
     </div>
   );
 }

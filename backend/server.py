@@ -8,6 +8,8 @@ load_dotenv(ROOT_DIR / '.env')
 from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from fastapi.responses import StreamingResponse
+import io
 import logging
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -180,6 +182,11 @@ class SalesRow(BaseModel):
 
 class SalesConfirmInput(BaseModel):
     rows: List[SalesRow]
+
+
+class SetRackBulkInput(BaseModel):
+    lokasi_rak: str
+    codes: List[str]
 
 
 # ------------------------------------------------------------------ auth routes
@@ -507,6 +514,10 @@ async def submit_check(tugas_id: str, data: CheckInput, request: Request):
 # ------------------------------------------------------------------ admin summary
 @api_router.get("/summary")
 async def summary(admin: dict = Depends(require_admin), employee_id: Optional[str] = None):
+    return await _compute_summary(employee_id)
+
+
+async def _compute_summary(employee_id: Optional[str] = None):
     tugas_q = {}
     if employee_id and employee_id != "all":
         tugas_q["employee_id"] = employee_id
@@ -663,6 +674,126 @@ async def list_sales(admin: dict = Depends(require_admin)):
              "qty": r["qty"], "price": r.get("price", 0), "total": r.get("total", 0),
              "tanggal": r.get("tanggal", ""), "catatan": r.get("catatan", ""),
              "created_by": r.get("created_by", ""), "created_at": r.get("created_at", "")} for r in rows]
+
+
+# ------------------------------------------------------------------ bulk rack + exports
+@api_router.post("/barang/set-rack-bulk")
+async def set_rack_bulk(data: SetRackBulkInput, admin: dict = Depends(require_admin)):
+    if not data.lokasi_rak.strip():
+        raise HTTPException(status_code=400, detail="Lokasi rak wajib diisi")
+    updated, not_found = 0, []
+    for code in data.codes:
+        c = code.strip()
+        if not c:
+            continue
+        res = await db.barang.update_one({"$or": [{"barcode": c}, {"kode": c}]},
+                                         {"$set": {"lokasi_rak": data.lokasi_rak.strip(), "updated_at": now_iso()}})
+        if res.matched_count:
+            updated += 1
+        else:
+            not_found.append(c)
+    return {"updated": updated, "not_found": not_found}
+
+
+def _xlsx_stream(wb, filename):
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
+@api_router.get("/barang/export")
+async def export_barang(admin: dict = Depends(require_admin)):
+    from openpyxl import Workbook
+    items = await db.barang.find().sort("nama", 1).to_list(20000)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Master Barang"
+    ws.append(["Kode", "Barcode", "Nama", "Kategori", "Satuan", "Lokasi Rak",
+               "Stok Sistem", "Min Stok", "Harga Beli", "Harga Jual"])
+    for b in items:
+        ws.append([b.get("kode"), b.get("barcode"), b.get("nama"), b.get("kategori"), b.get("satuan"),
+                   b.get("lokasi_rak"), b.get("stok_sistem", 0), b.get("stok_minimum", 0),
+                   b.get("harga_beli", 0), b.get("harga_jual", 0)])
+    return _xlsx_stream(wb, "master-barang.xlsx")
+
+
+def _summary_pdf(s):
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), title="Rangkuman Cek Stok")
+    styles = getSampleStyleSheet()
+    el = [Paragraph("Rangkuman Cek Stok", styles["Title"])]
+    ov = s["overview"]
+    el.append(Paragraph(f"Ditugaskan: {ov['total_assigned']} | Dicek: {ov['total_checked']} | "
+                        f"Belum: {ov['total_unchecked']} | Selisih: {ov['total_discrepancy']}", styles["Normal"]))
+    el.append(Spacer(1, 10))
+
+    def tbl(title, headers, rows):
+        el.append(Paragraph(title, styles["Heading3"]))
+        data = [headers] + (rows if rows else [["(kosong)"] + [""] * (len(headers) - 1)])
+        t = Table(data, repeatRows=1)
+        t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4F46E5")),
+                               ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                               ("FONTSIZE", (0, 0), (-1, -1), 7),
+                               ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
+                               ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F1F5F9")])]))
+        el.append(t)
+        el.append(Spacer(1, 10))
+
+    tbl("Per Karyawan", ["Karyawan", "Ditugaskan", "Dicek", "Belum", "Selisih"],
+        [[b["employee_name"], b["assigned"], b["checked"], b["unchecked"], b["discrepancy"]] for b in s["breakdown"]])
+    tbl("Barang Habis", ["Barcode", "Nama", "SKU", "Rak", "Petugas"],
+        [[r["barcode"], r["nama"][:35], r["kode"], r["lokasi_rak"], r["employee_name"]] for r in s["out_of_stock"]])
+    tbl("Sisa Stok Sedikit", ["Barcode", "Nama", "SKU", "Fisik", "Min"],
+        [[r["barcode"], r["nama"][:35], r["kode"], r["stok_fisik"], r["stok_minimum"]] for r in s["low_stock"]])
+    tbl("Barang Selisih", ["Barcode", "Nama", "SKU", "Sistem", "Fisik", "Selisih", "Petugas"],
+        [[r["barcode"], r["nama"][:35], r["kode"], r["stok_sistem"], r["stok_fisik"], r["variance"], r["employee_name"]]
+         for r in s["discrepancies"]])
+    doc.build(el)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": "attachment; filename=rangkuman-cek-stok.pdf"})
+
+
+@api_router.get("/summary/export")
+async def export_summary(admin: dict = Depends(require_admin), format: str = "xlsx", employee_id: Optional[str] = None):
+    s = await _compute_summary(employee_id)
+    if format == "pdf":
+        return _summary_pdf(s)
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Ringkasan"
+    ov = s["overview"]
+    ws.append(["Metrik", "Nilai"])
+    for k, lbl in [("total_assigned", "Total Ditugaskan"), ("total_checked", "Total Dicek"),
+                   ("total_unchecked", "Total Belum Dicek"), ("total_discrepancy", "Total Selisih")]:
+        ws.append([lbl, ov[k]])
+    ws.append([])
+    ws.append(["Karyawan", "Ditugaskan", "Dicek", "Belum Dicek", "Selisih"])
+    for b in s["breakdown"]:
+        ws.append([b["employee_name"], b["assigned"], b["checked"], b["unchecked"], b["discrepancy"]])
+
+    def sheet(name, headers, rows):
+        w = wb.create_sheet(name[:31])
+        w.append(headers)
+        for r in rows:
+            w.append(r)
+
+    sheet("Belum Dicek", ["Barcode", "Nama", "SKU", "Rak", "Karyawan"],
+          [[r["barcode"], r["nama"], r["kode"], r["lokasi_rak"], r["employee_name"]] for r in s["unchecked"]])
+    sheet("Barang Habis", ["Barcode", "Nama", "SKU", "Rak", "Tgl Dicek", "Petugas"],
+          [[r["barcode"], r["nama"], r["kode"], r["lokasi_rak"], r["checked_at"], r["employee_name"]] for r in s["out_of_stock"]])
+    sheet("Stok Sedikit", ["Barcode", "Nama", "SKU", "Rak", "Stok Fisik", "Min"],
+          [[r["barcode"], r["nama"], r["kode"], r["lokasi_rak"], r["stok_fisik"], r["stok_minimum"]] for r in s["low_stock"]])
+    sheet("Selisih", ["Barcode", "Nama", "SKU", "Rak", "Sistem", "Fisik", "Selisih", "Catatan", "Petugas"],
+          [[r["barcode"], r["nama"], r["kode"], r["lokasi_rak"], r["stok_sistem"], r["stok_fisik"], r["variance"], r["catatan"], r["employee_name"]] for r in s["discrepancies"]])
+    return _xlsx_stream(wb, "rangkuman-cek-stok.xlsx")
 
 
 # ------------------------------------------------------------------ seeding

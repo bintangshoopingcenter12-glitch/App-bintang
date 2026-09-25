@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api, { apiError } from "@/lib/api";
+import api, { apiError, downloadFile } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,8 +10,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Package, CheckCircle2, Clock, AlertTriangle, XCircle, TrendingDown, Users,
+  Package, CheckCircle2, Clock, AlertTriangle, XCircle, TrendingDown, Users, Download, FileText,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 const cards = [
@@ -54,7 +55,15 @@ export default function SummaryPage() {
           <h1 className="font-heading text-2xl font-bold text-slate-900">Rangkuman Cek Stok</h1>
           <p className="mt-1 text-sm text-slate-500">Analitik cek stok, breakdown per karyawan, dan tabel pengecualian.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" data-testid="summary-export-xlsx"
+                  onClick={() => downloadFile(`/summary/export?format=xlsx${filterEmp !== "all" ? `&employee_id=${filterEmp}` : ""}`, "rangkuman-cek-stok.xlsx")}>
+            <Download className="h-4 w-4" /> Excel
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" data-testid="summary-export-pdf"
+                  onClick={() => downloadFile(`/summary/export?format=pdf${filterEmp !== "all" ? `&employee_id=${filterEmp}` : ""}`, "rangkuman-cek-stok.pdf")}>
+            <FileText className="h-4 w-4" /> PDF
+          </Button>
           <span className="text-sm text-slate-600">Karyawan:</span>
           <Select value={filterEmp} onValueChange={setFilterEmp}>
             <SelectTrigger className="w-52" data-testid="summary-filter-employee"><SelectValue /></SelectTrigger>

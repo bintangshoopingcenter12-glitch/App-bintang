@@ -8,7 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ArrowDownLeft, Save, Info, Barcode, Search } from "lucide-react";
+import { ArrowDownLeft, Save, Info, Barcode, Search, MapPin, Plus, X } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { CameraScanButton } from "@/components/CameraScanner";
 import { toast } from "sonner";
 
 const empty = { kode: "", nama: "", kategori: "", barcode: "", jumlah: 1, lokasi_rak: "", supplier: "", keterangan: "" };
@@ -17,11 +19,34 @@ export default function BarangMasukPage() {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState(empty);
   const [scanCode, setScanCode] = useState("");
+  const [rackLoc, setRackLoc] = useState("");
+  const [bulkInput, setBulkInput] = useState("");
+  const [bulkCodes, setBulkCodes] = useState([]);
+  const [bulkResult, setBulkResult] = useState(null);
 
-  const lookup = async () => {
-    if (!scanCode.trim()) return;
+  const addBulkCode = (c) => {
+    const code = (typeof c === "string" ? c : bulkInput).trim();
+    if (!code) return;
+    setBulkCodes((prev) => (prev.includes(code) ? prev : [...prev, code]));
+    setBulkInput("");
+  };
+  const removeBulkCode = (code) => setBulkCodes((prev) => prev.filter((x) => x !== code));
+  const saveBulkRack = async () => {
+    if (!rackLoc.trim()) { toast.error("Isi lokasi rak dulu"); return; }
+    if (!bulkCodes.length) { toast.error("Scan/masukkan minimal 1 barcode"); return; }
     try {
-      const { data } = await api.get("/barang/lookup", { params: { code: scanCode.trim() } });
+      const { data } = await api.post("/barang/set-rack-bulk", { lokasi_rak: rackLoc.trim(), codes: bulkCodes });
+      setBulkResult(data);
+      toast.success(`${data.updated} barang diset ke rak ${rackLoc.trim()}`);
+      setBulkCodes([]);
+    } catch (e) { toast.error(apiError(e)); }
+  };
+
+  const lookup = async (codeArg) => {
+    const code = (typeof codeArg === "string" ? codeArg : scanCode).trim();
+    if (!code) return;
+    try {
+      const { data } = await api.get("/barang/lookup", { params: { code } });
       setForm((f) => ({ ...f, kode: data.kode, nama: data.nama, kategori: data.kategori || "",
         barcode: data.barcode || "", lokasi_rak: data.lokasi_rak || f.lokasi_rak }));
       toast.success(`Ditemukan: ${data.nama}`);
@@ -51,6 +76,13 @@ export default function BarangMasukPage() {
         <p className="mt-1 text-sm text-slate-500">Catat penerimaan barang. Lokasi rak akan otomatis memperbarui Master Data.</p>
       </div>
 
+      <Tabs defaultValue="masuk">
+        <TabsList className="bg-slate-100">
+          <TabsTrigger value="masuk" data-testid="tab-inbound">Barang Masuk</TabsTrigger>
+          <TabsTrigger value="rak" data-testid="tab-bulk-rack">Set Lokasi Rak Massal</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="masuk" className="mt-4">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <Card className="border-slate-200 p-5 lg:col-span-5">
           <form onSubmit={submit} className="space-y-4">
@@ -61,9 +93,10 @@ export default function BarangMasukPage() {
                 <Input data-testid="inbound-scan-input" className="font-mono" placeholder="Scan untuk isi otomatis"
                        value={scanCode} onChange={(e) => setScanCode(e.target.value)}
                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); lookup(); } }} />
-                <Button type="button" variant="outline" data-testid="inbound-scan-btn" onClick={lookup} className="gap-1.5">
+                <Button type="button" variant="outline" data-testid="inbound-scan-btn" onClick={() => lookup()} className="gap-1.5">
                   <Search className="h-4 w-4" /> Cari
                 </Button>
+                <CameraScanButton testid="inbound-camera-btn" label="" onScan={(c) => { setScanCode(c); lookup(c); }} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -129,6 +162,56 @@ export default function BarangMasukPage() {
           </div>
         </Card>
       </div>
+        </TabsContent>
+
+        <TabsContent value="rak" className="mt-4">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <Card className="border-slate-200 p-5 lg:col-span-5">
+              <h3 className="font-heading font-semibold text-slate-900">Set Lokasi Rak Massal</h3>
+              <p className="mt-1 mb-4 text-xs text-slate-500">Tentukan satu lokasi rak, lalu scan/masukkan banyak barcode. Semua akan diset ke rak tersebut.</p>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-indigo-700">Lokasi Rak / Shelf ID *</Label>
+                  <Input data-testid="bulk-rack-location-input" placeholder="mis. R3-D1" value={rackLoc} onChange={(e) => setRackLoc(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1.5"><Barcode className="h-3.5 w-3.5" /> Scan / Masukkan Barcode</Label>
+                  <div className="flex gap-2">
+                    <Input data-testid="bulk-rack-code-input" className="font-mono" placeholder="Scan lalu Enter" value={bulkInput}
+                           onChange={(e) => setBulkInput(e.target.value)}
+                           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBulkCode(); } }} />
+                    <Button type="button" variant="outline" data-testid="bulk-rack-add-btn" onClick={() => addBulkCode()} className="gap-1.5"><Plus className="h-4 w-4" /></Button>
+                    <CameraScanButton testid="bulk-rack-camera-btn" label="" onScan={(c) => addBulkCode(c)} />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2" data-testid="bulk-rack-chips">
+                  {bulkCodes.map((c) => (
+                    <span key={c} className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-mono text-xs">
+                      {c}<button type="button" onClick={() => removeBulkCode(c)}><X className="h-3 w-3 text-slate-500" /></button>
+                    </span>
+                  ))}
+                  {bulkCodes.length === 0 && <span className="text-xs text-slate-400">Belum ada barcode.</span>}
+                </div>
+                <Button onClick={saveBulkRack} data-testid="bulk-rack-save-btn" className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700">
+                  <MapPin className="h-4 w-4" /> Terapkan ke {bulkCodes.length} Barang
+                </Button>
+                {bulkResult && (
+                  <div className="rounded-lg bg-slate-50 p-3 text-xs" data-testid="bulk-rack-result">
+                    <p className="text-emerald-600">Berhasil diperbarui: {bulkResult.updated}</p>
+                    {bulkResult.not_found?.length > 0 && <p className="text-rose-600">Tidak ditemukan: {bulkResult.not_found.join(", ")}</p>}
+                  </div>
+                )}
+              </div>
+            </Card>
+            <Card className="border-slate-200 p-5 lg:col-span-7">
+              <div className="flex items-start gap-2 rounded-lg bg-indigo-50 p-3 text-xs text-indigo-700">
+                <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                Cocok untuk mempercepat cek stok: kelompokkan barang per rak fisik, scan berurutan, lalu terapkan sekali klik.
+              </div>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
