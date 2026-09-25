@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   if (user) {
-    return <Navigate to={user.role === "admin" ? "/admin/dashboard" : "/employee/my-tasks"} replace />;
+    return <Navigate to={user.role === "admin" ? "/admin/dashboard" : "/employee/my-racks"} replace />;
   }
 
   const submit = async (e) => {
@@ -24,7 +24,7 @@ export default function LoginPage() {
     try {
       const u = await login(username.trim(), password);
       toast.success(`Selamat datang, ${u.name}`);
-      navigate(u.role === "admin" ? "/admin/dashboard" : "/employee/my-tasks", { replace: true });
+      navigate(u.role === "admin" ? "/admin/dashboard" : "/employee/my-racks", { replace: true });
     } catch (err) {
       toast.error(apiError(err));
     } finally {
