@@ -18,7 +18,7 @@ import {
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 
-const empty = { kode: "", nama: "", kategori: "", barcode: "", lokasi_rak: "", stok_sistem: 0, stok_minimum: 0 };
+const empty = { kode: "", nama: "", kategori: "", barcode: "", lokasi_rak: "", satuan: "pcs", stok_sistem: 0, stok_minimum: 0, harga_beli: 0, harga_jual: 0 };
 
 function genEan13() {
   const base = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10));
@@ -46,6 +46,8 @@ export default function MasterBarangPage() {
       ...form,
       stok_sistem: parseInt(form.stok_sistem) || 0,
       stok_minimum: parseInt(form.stok_minimum) || 0,
+      harga_beli: parseInt(form.harga_beli) || 0,
+      harga_jual: parseInt(form.harga_jual) || 0,
     };
     try {
       if (editId) await api.put(`/barang/${editId}`, payload);
@@ -96,6 +98,7 @@ export default function MasterBarangPage() {
                 <TableHead>Nama Barang</TableHead>
                 <TableHead>Kategori</TableHead>
                 <TableHead>Lokasi Rak</TableHead>
+                <TableHead className="text-right">Harga Jual</TableHead>
                 <TableHead className="text-right">Stok Sistem</TableHead>
                 <TableHead className="text-right">Min. Stok</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -109,6 +112,7 @@ export default function MasterBarangPage() {
                   <TableCell className="font-medium">{b.nama}</TableCell>
                   <TableCell><Badge variant="secondary">{b.kategori}</Badge></TableCell>
                   <TableCell className="font-mono text-xs">{b.lokasi_rak || "-"}</TableCell>
+                  <TableCell className="text-right text-slate-600">Rp {(b.harga_jual || 0).toLocaleString("id-ID")}</TableCell>
                   <TableCell className="text-right font-semibold">{b.stok_sistem}</TableCell>
                   <TableCell className="text-right text-slate-500">{b.stok_minimum}</TableCell>
                   <TableCell className="text-right">
@@ -124,7 +128,7 @@ export default function MasterBarangPage() {
                 </TableRow>
               ))}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="py-10 text-center text-slate-400">
+                <TableRow><TableCell colSpan={9} className="py-10 text-center text-slate-400">
                   <Package className="mx-auto mb-2 h-8 w-8" />Tidak ada barang
                 </TableCell></TableRow>
               )}
@@ -156,6 +160,12 @@ export default function MasterBarangPage() {
               <Input type="number" data-testid="form-stok-sistem" value={form.stok_sistem} onChange={(e) => setForm({ ...form, stok_sistem: e.target.value })} /></div>
             <div className="space-y-1.5"><Label>Minimum Stok</Label>
               <Input type="number" data-testid="form-stok-min" value={form.stok_minimum} onChange={(e) => setForm({ ...form, stok_minimum: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Satuan</Label>
+              <Input data-testid="form-satuan" value={form.satuan} onChange={(e) => setForm({ ...form, satuan: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Harga Beli</Label>
+              <Input type="number" data-testid="form-harga-beli" value={form.harga_beli} onChange={(e) => setForm({ ...form, harga_beli: e.target.value })} /></div>
+            <div className="col-span-2 space-y-1.5"><Label>Harga Jual</Label>
+              <Input type="number" data-testid="form-harga-jual" value={form.harga_jual} onChange={(e) => setForm({ ...form, harga_jual: e.target.value })} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>

@@ -19,6 +19,12 @@ Comprehensive Stock Checking Module (Cek Stok) with strict RBAC (Admin vs Employ
 - Admin Summary: metric cards + per-employee breakdown + 5 separate tabs (Belum Dicek, Barang Habis=0, Sisa Stok Sedikit ≤min, Barang Selisih system≠physical).
 
 ## Implemented (2026-09-24)
+### Iteration 4 — Impor Data Produk Asli (produk-bintang.xlsx)
+- Mengganti data demo dengan **3.290 produk asli** (Toko Bintang) via `/app/scripts/import_products.py` (parse openpyxl → MongoDB, batch insert).
+- Setiap produk punya **barcode unik** (barcode asli dari file; yang kosong/duplikat di-generate EAN-13 otomatis agar bisa discan). kode juga dijamin unik.
+- Field baru pada Master Barang: **satuan, harga_beli, harga_jual** (ditambahkan ke BarangInput/barang_public, form CRUD, kolom Harga Jual di Master Data & Cari Barang). 18 kategori.
+- Data lama (tugas/penugasan & sales demo) dibersihkan; admin menugaskan ulang dari katalog asli. `list_barang` limit dinaikkan ke 20000.
+
 ### Iteration 3 — Scan Barcode di Stok Opname + Menu Cari Barang
 - Employee Stok Opname: bar **scan-to-open** — scan/ketik barcode/SKU + Enter langsung membuka dialog input cek fisik item tsb; kode di luar tugas → toast error. Text search dipertahankan.
 - Menu Admin **Cari Barang** (`/admin/cari-barang`): scan barcode (via `/api/barang/lookup`) atau cari kode/nama/kategori; baris hasil scan di-highlight.

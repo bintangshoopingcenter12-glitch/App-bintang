@@ -136,8 +136,11 @@ class BarangInput(BaseModel):
     kategori: str
     barcode: str = ""
     lokasi_rak: str = ""
+    satuan: str = "pcs"
     stok_sistem: int = 0
     stok_minimum: int = 0
+    harga_beli: int = 0
+    harga_jual: int = 0
 
 
 class BarangMasukInput(BaseModel):
@@ -299,8 +302,9 @@ async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
 def barang_public(b: dict) -> dict:
     return {"id": b["_id"], "kode": b["kode"], "nama": b["nama"], "kategori": b.get("kategori", ""),
             "barcode": b.get("barcode", ""), "lokasi_rak": b.get("lokasi_rak", ""),
-            "stok_sistem": b.get("stok_sistem", 0),
-            "stok_minimum": b.get("stok_minimum", 0), "updated_at": b.get("updated_at", "")}
+            "satuan": b.get("satuan", "pcs"), "stok_sistem": b.get("stok_sistem", 0),
+            "stok_minimum": b.get("stok_minimum", 0), "harga_beli": b.get("harga_beli", 0),
+            "harga_jual": b.get("harga_jual", 0), "updated_at": b.get("updated_at", "")}
 
 
 def gen_ean13() -> str:
@@ -334,7 +338,7 @@ async def barang_lookup(code: str, request: Request):
 
 @api_router.get("/barang")
 async def list_barang(admin: dict = Depends(require_admin)):
-    items = await db.barang.find().sort("nama", 1).to_list(5000)
+    items = await db.barang.find().sort("nama", 1).to_list(20000)
     return [barang_public(b) for b in items]
 
 

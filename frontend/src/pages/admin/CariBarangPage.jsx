@@ -88,6 +88,7 @@ export default function CariBarangPage() {
                 <TableHead>Nama Barang</TableHead>
                 <TableHead>Kategori</TableHead>
                 <TableHead>Lokasi Rak</TableHead>
+                <TableHead className="text-right">Harga Jual</TableHead>
                 <TableHead className="text-right">Stok Sistem</TableHead>
                 <TableHead className="text-right">Min. Stok</TableHead>
               </TableRow>
@@ -104,12 +105,13 @@ export default function CariBarangPage() {
                   <TableCell className="font-medium">{b.nama}</TableCell>
                   <TableCell><Badge variant="secondary">{b.kategori || "-"}</Badge></TableCell>
                   <TableCell className="font-mono text-xs">{b.lokasi_rak || "-"}</TableCell>
+                  <TableCell className="text-right text-slate-600">Rp {(b.harga_jual || 0).toLocaleString("id-ID")}</TableCell>
                   <TableCell className="text-right font-semibold">{b.stok_sistem}</TableCell>
                   <TableCell className="text-right text-slate-500">{b.stok_minimum}</TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="py-10 text-center text-slate-400">
+                <TableRow><TableCell colSpan={8} className="py-10 text-center text-slate-400">
                   <PackageSearch className="mx-auto mb-2 h-8 w-8" />Tidak ada barang yang cocok
                 </TableCell></TableRow>
               )}
