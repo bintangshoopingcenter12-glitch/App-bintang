@@ -15,8 +15,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, KeyRound, Trash2 } from "lucide-react";
+import { Plus, Users, KeyRound, Trash2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -102,6 +103,21 @@ export default function UsersPage() {
             )}
           </TableBody>
         </Table>
+      </Card>
+
+      <Card className="border-slate-200 p-6" data-testid="users-change-password-card">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100">
+            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="font-heading font-bold text-slate-900">Ubah Password Saya</p>
+            <p className="text-xs text-slate-500">Ganti password akun admin Anda sendiri.</p>
+          </div>
+        </div>
+        <div className="max-w-md">
+          <ChangePasswordForm />
+        </div>
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>

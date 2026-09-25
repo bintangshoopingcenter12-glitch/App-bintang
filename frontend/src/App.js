@@ -13,6 +13,7 @@ import BarangMasukPage from "@/pages/admin/BarangMasukPage";
 import SalesPage from "@/pages/admin/SalesPage";
 import PenugasanPage from "@/pages/admin/PenugasanPage";
 import UsersPage from "@/pages/admin/UsersPage";
+import ProfilePage from "@/pages/admin/ProfilePage";
 import SummaryPage from "@/pages/admin/SummaryPage";
 import MyTasksPage from "@/pages/employee/MyTasksPage";
 import MyRacksPage from "@/pages/employee/MyRacksPage";
@@ -69,6 +70,7 @@ function App() {
               <Route path="/admin/penugasan" element={<PenugasanPage />} />
               <Route path="/admin/assignments" element={<AssignmentsPage />} />
               <Route path="/admin/karyawan" element={<UsersPage />} />
+              <Route path="/admin/profil" element={<ProfilePage />} />
               <Route path="/admin/summary" element={<SummaryPage />} />
             </Route>
 

@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard, Package, ArrowDownLeft, UserCheck, BarChart3,
-  ClipboardCheck, Users, LogOut, Menu, X, Boxes, ShoppingCart, Search,
+  ClipboardCheck, Users, LogOut, Menu, X, Boxes, ShoppingCart, Search, UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ const adminNav = [
   { label: "Penjualan", path: "/admin/penjualan", icon: ShoppingCart, tid: "nav-penjualan" },
   { label: "Penugasan Rak", path: "/admin/assignments", icon: UserCheck, tid: "nav-assignments" },
   { label: "Kelola Karyawan", path: "/admin/karyawan", icon: Users, tid: "nav-karyawan" },
+  { label: "Profil / Password", path: "/admin/profil", icon: UserCog, tid: "nav-profil" },
   { label: "Rangkuman Cek Stok", path: "/admin/summary", icon: BarChart3, tid: "nav-admin-summary-button", primary: true },
 ];
 

@@ -132,6 +132,11 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
 
 
+class ChangePasswordInput(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class BarangInput(BaseModel):
     kode: str
     nama: str
@@ -218,6 +223,26 @@ async def login(data: LoginInput, request: Request, response: Response):
                      create_access_token(user["_id"], user["username"], ver),
                      create_refresh_token(user["_id"], ver))
     return public_user(user)
+
+
+@api_router.post("/auth/change-password")
+async def change_password(data: ChangePasswordInput, request: Request, response: Response):
+    user = await get_current_user(request)
+    if not verify_password(data.current_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Password saat ini salah")
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password baru minimal 6 karakter")
+    if verify_password(data.new_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Password baru tidak boleh sama dengan password lama")
+    new_ver = user.get("token_version", 0) + 1
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "password_hash": hash_password(data.new_password), "token_version": new_ver}})
+    # re-issue cookies with the bumped version so the current session stays valid,
+    # while any other session (old token_version) is invalidated
+    set_auth_cookies(response,
+                     create_access_token(user["_id"], user["username"], new_ver),
+                     create_refresh_token(user["_id"], new_ver))
+    return {"message": "Password berhasil diubah"}
 
 
 @api_router.post("/auth/logout")
@@ -1014,14 +1039,19 @@ async def seed():
 
     existing = await db.users.find_one({"username": admin_username})
     if not existing:
-        await db.users.insert_one({"_id": str(uuid.uuid4()), "username": admin_username,
-                                   "password_hash": hash_password(admin_password), "name": "Administrator",
-                                   "role": "admin", "email": admin_email, "token_version": 0,
-                                   "created_at": now_iso()})
-    elif not verify_password(admin_password, existing["password_hash"]):
-        await db.users.update_one({"_id": existing["_id"]},
-                                  {"$set": {"password_hash": hash_password(admin_password),
-                                            "email": admin_email}})
+        # migrate any legacy admin account to the configured username + password,
+        # otherwise create a fresh admin. Password is only set here (create/rename)
+        # so a self-service password change is NOT clobbered on restart.
+        legacy = await db.users.find_one({"role": "admin"})
+        if legacy:
+            await db.users.update_one({"_id": legacy["_id"]}, {"$set": {
+                "username": admin_username, "password_hash": hash_password(admin_password),
+                "email": admin_email, "name": legacy.get("name") or "Administrator", "role": "admin"}})
+        else:
+            await db.users.insert_one({"_id": str(uuid.uuid4()), "username": admin_username,
+                                       "password_hash": hash_password(admin_password), "name": "Administrator",
+                                       "role": "admin", "email": admin_email, "token_version": 0,
+                                       "created_at": now_iso()})
 
     # demo employees
     demo_emps = [("budi", "Budi Santoso"), ("dedi", "Dedi Kurniawan"), ("siti", "Siti Aminah")]

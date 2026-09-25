@@ -78,8 +78,15 @@ Comprehensive Stock Checking Module (Cek Stok) with strict RBAC (Admin vs Employ
 - Verified: testing agent iteration_1 = 100% backend + 100% frontend.
 
 ## Credentials
-- Admin: `admin` / `admin123` (owner email: bintangshoopingcenter12@gmail.com)
+- Admin: `Bintang` / `admin2026` (owner email: bintangshoopingcenter12@gmail.com) — self-service change via /api/auth/change-password
 - Employees: `budi`, `dedi`, `siti` / `user123`
+
+### Iteration 9 — Rename akun admin + ubah password mandiri (2026-06)
+- Akun admin lama `admin` di-migrasi jadi `Bintang` / `admin2026` (satu akun). `.env` ADMIN_USERNAME/ADMIN_PASSWORD diperbarui.
+- Endpoint baru `POST /api/auth/change-password` (verifikasi password lama → set hash baru → `token_version++` → re-issue cookie sesi saat ini). Validasi min 6 karakter & tidak boleh sama dgn lama.
+- Seed diubah: password admin hanya di-set saat create/rename → perubahan password mandiri tidak ter-reset saat backend restart.
+- UI: menu "Profil / Password" (`/admin/profil` + `ProfilePage.jsx`) & kartu "Ubah Password Saya" di Kelola Karyawan; komponen reusable `ChangePasswordForm.jsx`.
+- Verified via curl (login baru 200, lama 401, wrong-current 400, change 200, re-login 200) + smoke test UI.
 
 ## Backlog / Remaining
 - P1: Export Excel/PDF on Summary page (offered to user).
