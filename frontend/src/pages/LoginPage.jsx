@@ -113,11 +113,6 @@ export default function LoginPage() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Masuk"}
             </Button>
           </form>
-          <div className="mt-6 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
-            <p className="mb-1 font-semibold text-slate-700">Akun demo:</p>
-            <p>Admin: <code className="font-mono">admin</code> / <code className="font-mono">admin123</code></p>
-            <p>Karyawan: <code className="font-mono">budi</code>, <code className="font-mono">dedi</code>, <code className="font-mono">siti</code> / <code className="font-mono">user123</code></p>
-          </div>
         </div>
       </div>
     </div>

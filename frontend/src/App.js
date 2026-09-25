@@ -15,6 +15,8 @@ import PenugasanPage from "@/pages/admin/PenugasanPage";
 import UsersPage from "@/pages/admin/UsersPage";
 import SummaryPage from "@/pages/admin/SummaryPage";
 import MyTasksPage from "@/pages/employee/MyTasksPage";
+import MyRacksPage from "@/pages/employee/MyRacksPage";
+import AssignmentsPage from "@/pages/admin/AssignmentsPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 
 function FullLoader() {
@@ -30,7 +32,7 @@ function Protected({ children, role }) {
   if (user === null) return <FullLoader />;
   if (user === false) return <Navigate to="/login" replace />;
   if (role && user.role !== role) {
-    return <Navigate to={user.role === "admin" ? "/admin/dashboard" : "/employee/my-tasks"} replace />;
+    return <Navigate to={user.role === "admin" ? "/admin/dashboard" : "/employee/my-racks"} replace />;
   }
   return children;
 }
@@ -39,7 +41,7 @@ function RootRedirect() {
   const { user } = useAuth();
   if (user === null) return <FullLoader />;
   if (user === false) return <Navigate to="/login" replace />;
-  return <Navigate to={user.role === "admin" ? "/admin/dashboard" : "/employee/my-tasks"} replace />;
+  return <Navigate to={user.role === "admin" ? "/admin/dashboard" : "/employee/my-racks"} replace />;
 }
 
 function App() {
@@ -65,6 +67,7 @@ function App() {
               <Route path="/admin/barang-masuk" element={<BarangMasukPage />} />
               <Route path="/admin/penjualan" element={<SalesPage />} />
               <Route path="/admin/penugasan" element={<PenugasanPage />} />
+              <Route path="/admin/assignments" element={<AssignmentsPage />} />
               <Route path="/admin/karyawan" element={<UsersPage />} />
               <Route path="/admin/summary" element={<SummaryPage />} />
             </Route>
@@ -77,6 +80,7 @@ function App() {
               }
             >
               <Route path="/employee/my-tasks" element={<MyTasksPage />} />
+              <Route path="/employee/my-racks" element={<MyRacksPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

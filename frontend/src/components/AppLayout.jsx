@@ -14,13 +14,13 @@ const adminNav = [
   { label: "Cari Barang", path: "/admin/cari-barang", icon: Search, tid: "nav-cari-barang" },
   { label: "Barang Masuk", path: "/admin/barang-masuk", icon: ArrowDownLeft, tid: "nav-barang-masuk" },
   { label: "Penjualan", path: "/admin/penjualan", icon: ShoppingCart, tid: "nav-penjualan" },
-  { label: "Penugasan Karyawan", path: "/admin/penugasan", icon: UserCheck, tid: "nav-penugasan" },
+  { label: "Penugasan Rak", path: "/admin/assignments", icon: UserCheck, tid: "nav-assignments" },
   { label: "Kelola Karyawan", path: "/admin/karyawan", icon: Users, tid: "nav-karyawan" },
   { label: "Rangkuman Cek Stok", path: "/admin/summary", icon: BarChart3, tid: "nav-admin-summary-button", primary: true },
 ];
 
 const employeeNav = [
-  { label: "Tugas Cek Stok Saya", path: "/employee/my-tasks", icon: ClipboardCheck, tid: "nav-my-tasks" },
+  { label: "Tugas Rak Saya", path: "/employee/my-racks", icon: ClipboardCheck, tid: "nav-my-racks" },
 ];
 
 export default function AppLayout() {

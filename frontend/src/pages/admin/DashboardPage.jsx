@@ -24,11 +24,13 @@ const colorMap = {
 export default function DashboardPage() {
   const [ov, setOv] = useState(null);
   const [barangCount, setBarangCount] = useState(0);
+  const [asg, setAsg] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     api.get("/summary").then((r) => setOv(r.data.overview)).catch(() => {});
     api.get("/barang/search", { params: { limit: 1 } }).then((r) => setBarangCount(r.data.total)).catch(() => {});
+    api.get("/assignments/dashboard").then((r) => setAsg(r.data)).catch(() => {});
   }, []);
 
   return (
@@ -46,6 +48,26 @@ export default function DashboardPage() {
           <BarChart3 className="h-4 w-4" /> Buka Rangkuman Cek Stok
         </Button>
       </div>
+
+      {asg && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5" data-testid="dashboard-today-assignments">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-heading font-semibold text-slate-900">Tugas Hari Ini</h3>
+            <span className="text-xs text-slate-500">{asg.tanggal}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-lg bg-slate-50 p-3"><p className="text-2xl font-bold">{asg.total_rak}</p><p className="text-xs text-slate-500">Rak Ditugaskan</p></div>
+            <div className="rounded-lg bg-slate-50 p-3"><p className="text-2xl font-bold">{asg.total_karyawan}</p><p className="text-xs text-slate-500">Karyawan Aktif</p></div>
+            <div className="rounded-lg bg-slate-50 p-3"><p className="text-2xl font-bold text-indigo-600">{asg.progress}%</p><p className="text-xs text-slate-500">Progress</p></div>
+            <div className="rounded-lg bg-slate-50 p-3"><p className="text-2xl font-bold text-amber-600">{asg.pending_racks.length}</p><p className="text-xs text-slate-500">Rak Pending</p></div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {asg.per_zona.map((z) => (
+              <span key={z.zona} className="rounded-full bg-indigo-50 px-3 py-1 text-xs text-indigo-700">Zona {z.zona}: {z.progress}% ({z.count} rak)</span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (

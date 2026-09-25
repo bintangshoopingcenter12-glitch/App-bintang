@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.141" timestamp="2026-09-25T08:23:24.074177+00:00" hostname="agent-env-304c67eb-b4a1-4c2d-90d4-88f97f9f0aa2"><testcase classname="" name="tests.test_barang_search" time="0.000"><error message="collection failure">backend/tests/test_barang_search.py:6: in &lt;module&gt;
+    BASE_URL = os.environ.get('REACT_APP_BACKEND_URL').rstrip('/')
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'rstrip'</error></testcase></testsuite></testsuites>

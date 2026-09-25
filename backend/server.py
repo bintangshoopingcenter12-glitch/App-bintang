@@ -345,11 +345,16 @@ async def barang_lookup(code: str, request: Request):
 
 @api_router.get("/barang/search")
 async def search_barang(admin: dict = Depends(require_admin), q: str = "", kategori: str = "all",
-                        page: int = 1, limit: int = 25):
+                        page: int = 1, limit: int = 25, rak: str = "", zona: str = ""):
     import re
     query = {}
     if kategori and kategori != "all":
         query["kategori"] = kategori
+    if rak.strip():
+        query["lokasi_rak"] = rak.strip()
+    elif zona.strip():
+        codes = await db.locations.find({"zona": zona.strip()}).to_list(1000)
+        query["lokasi_rak"] = {"$in": [c["kode_rak"] for c in codes]}
     if q.strip():
         rx = re.escape(q.strip())
         query["$or"] = [{"nama": {"$regex": rx, "$options": "i"}},
@@ -816,6 +821,191 @@ async def export_summary(admin: dict = Depends(require_admin), format: str = "xl
     return _xlsx_stream(wb, "rangkuman-cek-stok.xlsx")
 
 
+# ------------------------------------------------------------------ locations & rack-based assignments
+class LocationInput(BaseModel):
+    kode_rak: str
+    nama_rak: str = ""
+    zona: str = ""
+    deskripsi: str = ""
+    kapasitas: int = 100
+
+
+class AssignmentInput(BaseModel):
+    user_id: str
+    kode_rak: str
+    shift: str = "pagi"
+    tanggal: str = ""
+    jenis_tugas: str = "cek_stok"
+    catatan: str = ""
+
+
+class AssignmentDoneInput(BaseModel):
+    product_id: str
+    catatan: str = ""
+
+
+def _today():
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+@api_router.get("/locations")
+async def list_locations(admin: dict = Depends(require_admin)):
+    locs = await db.locations.find().sort("kode_rak", 1).to_list(1000)
+    out = []
+    for l in locs:
+        pc = await db.barang.count_documents({"lokasi_rak": l["kode_rak"]})
+        out.append({"id": l["_id"], "kode_rak": l["kode_rak"], "nama_rak": l.get("nama_rak", ""),
+                    "zona": l.get("zona", ""), "deskripsi": l.get("deskripsi", ""),
+                    "kapasitas": l.get("kapasitas", 0), "product_count": pc})
+    return out
+
+
+@api_router.get("/locations/zonas")
+async def list_zonas(admin: dict = Depends(require_admin)):
+    return sorted([z for z in await db.locations.distinct("zona") if z])
+
+
+@api_router.post("/locations")
+async def create_location(data: LocationInput, admin: dict = Depends(require_admin)):
+    if await db.locations.find_one({"kode_rak": data.kode_rak}):
+        raise HTTPException(status_code=400, detail="Kode rak sudah ada")
+    doc = {"_id": str(uuid.uuid4()), **data.model_dump(), "created_at": now_iso()}
+    await db.locations.insert_one(doc)
+    return {"id": doc["_id"]}
+
+
+@api_router.delete("/locations/{loc_id}")
+async def delete_location(loc_id: str, admin: dict = Depends(require_admin)):
+    await db.locations.delete_one({"_id": loc_id})
+    return {"message": "Rak dihapus"}
+
+
+async def _assignment_public(a: dict) -> dict:
+    loc = await db.locations.find_one({"kode_rak": a["kode_rak"]}) or {}
+    emp = await db.users.find_one({"_id": a["user_id"]}) or {}
+    product_count = await db.barang.count_documents({"lokasi_rak": a["kode_rak"]})
+    done_count = len(await db.assignment_logs.distinct("product_id", {"assignment_id": a["_id"], "aksi": "done"}))
+    progress = round((done_count / product_count) * 100) if product_count else 0
+    status = "done" if (product_count and done_count >= product_count) else ("progress" if done_count > 0 else "pending")
+    return {"id": a["_id"], "user_id": a["user_id"], "employee_name": emp.get("name", "-"),
+            "kode_rak": a["kode_rak"], "nama_rak": loc.get("nama_rak", a["kode_rak"]), "zona": a.get("zona", ""),
+            "shift": a.get("shift", ""), "tanggal": a.get("tanggal", ""), "jenis_tugas": a.get("jenis_tugas", ""),
+            "status": status, "catatan": a.get("catatan", ""), "product_count": product_count,
+            "done_count": done_count, "progress": progress}
+
+
+@api_router.get("/assignments")
+async def list_assignments(admin: dict = Depends(require_admin), tanggal: str = "", shift: str = "all",
+                           zona: str = "all", status: str = "all"):
+    query = {}
+    if tanggal.strip():
+        query["tanggal"] = tanggal.strip()
+    if shift and shift != "all":
+        query["shift"] = shift
+    if zona and zona != "all":
+        query["zona"] = zona
+    rows = await db.assignments.find(query).sort("created_at", -1).to_list(5000)
+    out = [await _assignment_public(a) for a in rows]
+    if status and status != "all":
+        out = [o for o in out if o["status"] == status]
+    return out
+
+
+@api_router.post("/assignments")
+async def create_assignment(data: AssignmentInput, admin: dict = Depends(require_admin)):
+    if not await db.users.find_one({"_id": data.user_id, "role": "employee"}):
+        raise HTTPException(status_code=404, detail="Karyawan tidak ditemukan")
+    loc = await db.locations.find_one({"kode_rak": data.kode_rak})
+    if not loc:
+        raise HTTPException(status_code=404, detail="Rak tidak ditemukan")
+    tanggal = data.tanggal or _today()
+    if await db.assignments.find_one({"user_id": data.user_id, "kode_rak": data.kode_rak,
+                                      "tanggal": tanggal, "shift": data.shift}):
+        raise HTTPException(status_code=400, detail="Rak ini sudah ditugaskan ke karyawan tsb di shift & tanggal itu")
+    doc = {"_id": str(uuid.uuid4()), "user_id": data.user_id, "kode_rak": data.kode_rak, "zona": loc.get("zona", ""),
+           "shift": data.shift, "tanggal": tanggal, "jenis_tugas": data.jenis_tugas, "status": "pending",
+           "catatan": data.catatan, "created_at": now_iso()}
+    await db.assignments.insert_one(doc)
+    return await _assignment_public(doc)
+
+
+@api_router.delete("/assignments/{assignment_id}")
+async def delete_assignment(assignment_id: str, admin: dict = Depends(require_admin)):
+    await db.assignments.delete_one({"_id": assignment_id})
+    await db.assignment_logs.delete_many({"assignment_id": assignment_id})
+    return {"message": "Penugasan dihapus"}
+
+
+@api_router.get("/assignments/dashboard")
+async def assignments_dashboard(admin: dict = Depends(require_admin), tanggal: str = ""):
+    tanggal = tanggal.strip() or _today()
+    rows = await db.assignments.find({"tanggal": tanggal}).to_list(5000)
+    pub = [await _assignment_public(a) for a in rows]
+    avg = round(sum(p["progress"] for p in pub) / len(pub)) if pub else 0
+    pending = [{"kode_rak": p["kode_rak"], "nama_rak": p["nama_rak"], "employee_name": p["employee_name"]}
+               for p in pub if p["status"] == "pending"]
+    active = [{"employee_name": p["employee_name"], "shift": p["shift"], "kode_rak": p["kode_rak"]}
+              for p in pub if p["status"] == "progress"]
+    zona_map = {}
+    for p in pub:
+        zona_map.setdefault(p["zona"] or "-", []).append(p["progress"])
+    per_zona = [{"zona": z, "progress": round(sum(v) / len(v)) if v else 0, "count": len(v)}
+                for z, v in sorted(zona_map.items())]
+    return {"tanggal": tanggal, "total_rak": len({p["kode_rak"] for p in pub}),
+            "total_karyawan": len({p["user_id"] for p in pub}), "progress": avg,
+            "pending_racks": pending, "active": active, "per_zona": per_zona}
+
+
+@api_router.get("/my-assignments")
+async def my_assignments(request: Request, tanggal: str = ""):
+    user = await get_current_user(request)
+    if user.get("role") != "employee":
+        raise HTTPException(status_code=403, detail="Khusus karyawan")
+    query = {"user_id": user["_id"]}
+    if tanggal.strip():
+        query["tanggal"] = tanggal.strip()
+    rows = await db.assignments.find(query).sort("tanggal", -1).to_list(2000)
+    return [await _assignment_public(a) for a in rows]
+
+
+@api_router.get("/my-assignments/{assignment_id}/products")
+async def my_assignment_products(assignment_id: str, request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "employee":
+        raise HTTPException(status_code=403, detail="Khusus karyawan")
+    a = await db.assignments.find_one({"_id": assignment_id, "user_id": user["_id"]})
+    if not a:
+        raise HTTPException(status_code=404, detail="Tugas tidak ditemukan")
+    prods = await db.barang.find({"lokasi_rak": a["kode_rak"]}).sort("nama", 1).to_list(5000)
+    done = set(await db.assignment_logs.distinct("product_id", {"assignment_id": assignment_id, "aksi": "done"}))
+    return {"kode_rak": a["kode_rak"], "zona": a.get("zona", ""), "jenis_tugas": a.get("jenis_tugas", ""),
+            "items": [{"id": p["_id"], "kode": p["kode"], "barcode": p.get("barcode", ""), "nama": p["nama"],
+                       "kategori": p.get("kategori", ""), "lokasi_rak": p.get("lokasi_rak", ""),
+                       "done": p["_id"] in done} for p in prods]}
+
+
+@api_router.post("/my-assignments/{assignment_id}/done")
+async def my_assignment_done(assignment_id: str, data: AssignmentDoneInput, request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "employee":
+        raise HTTPException(status_code=403, detail="Khusus karyawan")
+    a = await db.assignments.find_one({"_id": assignment_id, "user_id": user["_id"]})
+    if not a:
+        raise HTTPException(status_code=404, detail="Tugas tidak ditemukan")
+    p = await db.barang.find_one({"_id": data.product_id, "lokasi_rak": a["kode_rak"]})
+    if not p:
+        raise HTTPException(status_code=404, detail="Barang tidak berada di rak ini")
+    if not await db.assignment_logs.find_one({"assignment_id": assignment_id, "product_id": data.product_id, "aksi": "done"}):
+        await db.assignment_logs.insert_one({"_id": str(uuid.uuid4()), "assignment_id": assignment_id,
+            "product_id": data.product_id, "aksi": "done", "qty": 0, "foto_bukti": "",
+            "catatan": data.catatan, "waktu": now_iso()})
+    total = await db.barang.count_documents({"lokasi_rak": a["kode_rak"]})
+    done = len(await db.assignment_logs.distinct("product_id", {"assignment_id": assignment_id, "aksi": "done"}))
+    status = "done" if (total and done >= total) else ("progress" if done > 0 else "pending")
+    await db.assignments.update_one({"_id": assignment_id}, {"$set": {"status": status}})
+    return {"done": done, "total": total, "status": status}
+
+
 # ------------------------------------------------------------------ seeding
 async def seed():
     admin_username = os.environ.get("ADMIN_USERNAME", "admin").lower()
@@ -847,6 +1037,30 @@ async def seed():
             emp_ids[uname] = uid
         else:
             emp_ids[uname] = u["_id"]
+
+    # locations (rak) + auto-assign racks to products + sample assignments
+    if await db.locations.count_documents({}) == 0:
+        zonas = {"A": ["A1", "A2", "A3", "A4", "A5"], "B": ["B1", "B2", "B3", "B4", "B5"]}
+        for zona, codes in zonas.items():
+            for code in codes:
+                await db.locations.insert_one({"_id": str(uuid.uuid4()), "kode_rak": code,
+                    "nama_rak": f"Rak {code}", "zona": zona, "deskripsi": "",
+                    "kapasitas": 100, "created_at": now_iso()})
+        codes_all = zonas["A"] + zonas["B"]
+        prods = await db.barang.find().sort("nama", 1).limit(120).to_list(120)
+        for idx, p in enumerate(prods):
+            await db.barang.update_one({"_id": p["_id"]}, {"$set": {"lokasi_rak": codes_all[idx % len(codes_all)]}})
+        import datetime as _dt
+        today = _dt.datetime.now(_dt.timezone.utc).date().isoformat()
+        emp_list = [emp_ids.get("budi"), emp_ids.get("dedi"), emp_ids.get("siti")]
+        rack_groups = [["A1", "A2"], ["A3", "B1"], ["B2", "B3"]]
+        for eid, racks in zip(emp_list, rack_groups):
+            if not eid:
+                continue
+            for code in racks:
+                await db.assignments.insert_one({"_id": str(uuid.uuid4()), "user_id": eid, "kode_rak": code,
+                    "zona": code[0], "shift": "pagi", "tanggal": today, "jenis_tugas": "cek_stok",
+                    "status": "pending", "catatan": "", "created_at": now_iso()})
 
     # demo barang + tugas only if empty
     if await db.barang.count_documents({}) == 0:
@@ -939,6 +1153,10 @@ async def startup():
     await db.barang.create_index("barcode")
     await db.barang.create_index("nama")
     await db.barang.create_index("kategori")
+    await db.barang.create_index("lokasi_rak")
+    await db.locations.create_index("kode_rak", unique=True)
+    await db.assignments.create_index("user_id")
+    await db.assignments.create_index("tanggal")
     await db.tugas.create_index("employee_id")
     await seed()
     async for b in db.barang.find({"$or": [{"barcode": {"$exists": False}}, {"barcode": ""}]}):
